@@ -57,7 +57,7 @@ func main() {
 		name string
 		url  string
 	}{
-		{"BN SPOT API", "https://api.binance.com/sapi/v1/ping"},
+		{"BN SPOT API", "https://api.binance.com/api/v3/ping"},
 		{"BN FUTURE API", "https://fapi.binance.com/fapi/v1/ping"},
 		{"BN DELIVERY API", "https://dapi.binance.com/dapi/v1/ping"},
 		// {"BN SPOT API", "https://icanhazip.com"},
