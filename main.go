@@ -2,22 +2,57 @@ package main
 
 import (
 	"cgolatencytest/http_client"
+	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
+
+// 进度指示器字符
+var spinnerChars = []string{"|", "/", "-", "\\"}
+
+// 开始进度指示器
+func startSpinner(ctx context.Context, prefix string) {
+	go func() {
+		i := 0
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Printf("\r%s 完成!\n", prefix)
+				return
+			case <-ticker.C:
+				fmt.Printf("\r%s %s", prefix, spinnerChars[i%len(spinnerChars)])
+				i++
+			}
+		}
+	}()
+}
+
+// 格式化延迟显示
+func formatLatency(latencyNs int64) string {
+	latencyMs := float64(latencyNs) / 1000000
+	return fmt.Sprintf("%.2f ms", latencyMs)
+}
 
 func main() {
 	fmt.Println("=== HTTP 并发延迟测试程序 ===")
 
 	// 初始化libcurl
-	fmt.Println("正在初始化libcurl...")
+	ctx, cancel := context.WithCancel(context.Background())
+	startSpinner(ctx, "正在初始化libcurl...")
 	err := http_client.InitLibcurl()
+	cancel()
 	if err != nil {
 		log.Fatal("libcurl初始化失败:", err)
 	}
 	defer http_client.CleanupLibcurl()
+	fmt.Println("✓ libcurl初始化成功!")
 	runCases := []struct {
 		name string
 		url  string
@@ -30,14 +65,69 @@ func main() {
 		// {"BN DELIVERY API", "https://icanhazip.com"},
 	}
 
-	resultMap := map[string]struct {
+	type TestResult struct {
 		successCount int64
 		sumLatency   int64
-	}{}
+		mu           sync.RWMutex
+	}
+
+	resultMap := make(map[string]*TestResult)
+
+	// 初始化resultMap
+	for _, rc := range runCases {
+		resultMap[rc.name] = &TestResult{}
+	}
+
+	fmt.Println("\n开始延迟测试...")
+	fmt.Printf("测试目标: %s\n", strings.Join(func() []string {
+		var names []string
+		for _, rc := range runCases {
+			names = append(names, rc.name)
+		}
+		return names
+	}(), ", "))
+	fmt.Println("=", strings.Repeat("=", 50))
+
+	// 启动实时状态显示goroutine
+	statusCtx, statusCancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-statusCtx.Done():
+				return
+			case <-ticker.C:
+				fmt.Print("\r")
+				for i, rc := range runCases {
+					result := resultMap[rc.name]
+					result.mu.RLock()
+					successCount := atomic.LoadInt64(&result.successCount)
+					sumLatency := atomic.LoadInt64(&result.sumLatency)
+					result.mu.RUnlock()
+
+					if successCount > 0 {
+						avgLatency := sumLatency / successCount
+						fmt.Printf("%s: %d/%d (%s) ", rc.name, successCount, 1000, formatLatency(avgLatency))
+					} else {
+						fmt.Printf("%s: 0/1000 (等待中...) ", rc.name)
+					}
+					if i < len(runCases)-1 {
+						fmt.Print("| ")
+					}
+				}
+			}
+		}
+	}()
+
 	var wg sync.WaitGroup
 	for _, rc := range runCases {
 		wg.Add(1)
-		go func() {
+		go func(testCase struct {
+			name string
+			url  string
+		}) {
 			defer wg.Done()
 			// 创建多个客户端实例
 			client1, err := http_client.NewClientLibcurl()
@@ -45,11 +135,9 @@ func main() {
 				panic(err)
 			}
 			defer client1.Close()
-			sumLatency := int64(0)
-			successCount := int64(0)
-			for i := 0; i < 1000; i++ {
 
-				res := client1.Get(rc.url, 3000, 0)
+			for i := 0; i < 1000; i++ {
+				res := client1.Get(testCase.url, 3000, 0)
 				if res.Error != "" {
 					continue
 				}
@@ -57,27 +145,38 @@ func main() {
 				if res.StatusCode < 100 || res.StatusCode > 599 {
 					continue
 				}
-				// fmt.Printf("Target URL: %s\n", rc.url)
-				fmt.Println(res)
-				// fmt.Printf("Latency: %d ns, Status Code: %d\n", res.LatencyNs, res.StatusCode)
-				// fmt.Printf("DNS: %d ns, Connect: %d ns, TLS: %d ns\n",
-				// res.DNSTimeNs, res.ConnectTimeNs, res.TLSTimeNs)
-				atomic.AddInt64(&sumLatency, res.LatencyNs)
-				atomic.AddInt64(&successCount, 1)
+
+				// 更新统计数据
+				result := resultMap[testCase.name]
+				atomic.AddInt64(&result.sumLatency, res.LatencyNs)
+				atomic.AddInt64(&result.successCount, 1)
 			}
-			resultMap[rc.name] = struct {
-				successCount int64
-				sumLatency   int64
-			}{
-				successCount: successCount,
-				sumLatency:   sumLatency,
-			}
-		}()
+		}(rc)
 	}
 	wg.Wait()
-	for k, v := range resultMap {
-		fmt.Printf("Target: %s 成功请求次数：%d 平均延迟：%d ns ≈ %.8f ms\n", k, v.successCount, v.sumLatency/v.successCount, float64(v.sumLatency)/float64(v.successCount)/1000000)
+	statusCancel() // 停止实时状态显示
+
+	fmt.Printf("\r%s\n", strings.Repeat(" ", 100)) // 清除状态行
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("测试完成! 最终结果:")
+	fmt.Println(strings.Repeat("=", 60))
+
+	for _, rc := range runCases {
+		v := resultMap[rc.name]
+		successCount := atomic.LoadInt64(&v.successCount)
+		sumLatency := atomic.LoadInt64(&v.sumLatency)
+
+		if successCount > 0 {
+			avgLatencyNs := sumLatency / successCount
+			fmt.Printf("📊 %s:\n", rc.name)
+			fmt.Printf("   ✅ 成功请求: %d/1000\n", successCount)
+			fmt.Printf("   ⚡ 平均延迟: %s\n", formatLatency(avgLatencyNs))
+			fmt.Printf("   📈 成功率: %.1f%%\n", float64(successCount)/10.0)
+			fmt.Println()
+		} else {
+			fmt.Printf("❌ %s: 所有请求都失败了\n", rc.name)
+		}
 	}
 
-	fmt.Println("=== 测试程序执行完成 ===")
+	fmt.Println("=== 🎉 测试程序执行完成 ===")
 }
