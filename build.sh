@@ -16,6 +16,8 @@ print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+
+
 # 检查依赖
 check_deps() {
     print_info "检查依赖..."
@@ -336,8 +338,11 @@ show_help() {
     echo "  $0 docker-test # 仅Docker测试"
 }
 
+
+
 # 主函数
 main() {
+
     case ${1:-help} in
         "build")
             check_deps
@@ -372,6 +377,9 @@ main() {
             show_help
             ;;
     esac
+
+
 }
 
 main "$@"
+
