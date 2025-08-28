@@ -1,0 +1,44 @@
+
+services:
+  # HTTP延迟测试主服务
+  http-latency-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gocpptest-http-latency-test
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    volumes: []
+      # 可选：挂载配置文件
+      # - ./config:/app/config:ro
+      # 可选：挂载日志目录
+      # - ./logs:/app/logs
+    restart: unless-stopped
+    # 如果需要网络访问，取消注释下面的端口映射
+    # ports:
+    #   - "8080:8080"
+    networks:
+      - gocpptest-network
+
+  # 开发调试环境服务
+  http-latency-test-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gocpptest-http-latency-test-dev
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - gocpptest-network
+
+networks:
+  gocpptest-network:
+    driver: bridge
+
+volumes:
+  go-cache:
