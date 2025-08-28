@@ -1,3 +1,3 @@
-module gocpptest
+module cgolatencytest
 
 go 1.25

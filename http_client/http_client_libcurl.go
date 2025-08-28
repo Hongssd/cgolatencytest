@@ -20,20 +20,46 @@ const (
 	HTTP_METHOD_PATCH  = 5
 )
 
-// ResultLibcurl 结构体，对应C的HttpResultLibcurl
+// ResultLibcurl 结构体
 type ResultLibcurl struct {
 	LatencyNs     int64
 	StatusCode    int
 	Error         string
-	DNSTimeUs     int64
-	ConnectTimeUs int64
-	TLSTimeUs     int64
+	DNSTimeNs     int64
+	ConnectTimeNs int64
+	TLSTimeNs     int64
 	ResponseBody  string
 	ResponseSize  int
 }
 
-// HTTPRequestLibcurl 使用libcurl执行HTTP请求
-func HTTPRequestLibcurl(url string, timeoutMs int, forceHttpVersion int, method int, postData string, headers []string) ResultLibcurl {
+// ClientLibcurl HTTP客户端实例
+type ClientLibcurl struct {
+	client unsafe.Pointer
+}
+
+// NewClientLibcurl 创建新的HTTP客户端实例
+func NewClientLibcurl() (*ClientLibcurl, error) {
+	client := C.http_client_new_libcurl()
+	if client == nil {
+		return nil, &CError{Code: -1}
+	}
+	return &ClientLibcurl{client: unsafe.Pointer(client)}, nil
+}
+
+// Close 关闭HTTP客户端实例
+func (c *ClientLibcurl) Close() {
+	if c.client != nil {
+		C.http_client_destroy_libcurl((*C.HttpClientLibcurl)(c.client))
+		c.client = nil
+	}
+}
+
+// Request 执行HTTP请求
+func (c *ClientLibcurl) Request(url string, timeoutMs int, forceHttpVersion int, method int, postData string, headers []string) ResultLibcurl {
+	if c.client == nil {
+		return ResultLibcurl{Error: "Client not initialized"}
+	}
+
 	cURL := C.CString(url)
 	defer C.free(unsafe.Pointer(cURL))
 
@@ -54,7 +80,7 @@ func HTTPRequestLibcurl(url string, timeoutMs int, forceHttpVersion int, method 
 		cHeaders = &cHeadersArray[0]
 	}
 
-	res := C.http_request_libcurl(cURL, C.int(timeoutMs), C.int(forceHttpVersion),
+	res := C.http_request_libcurl((*C.HttpClientLibcurl)(c.client), cURL, C.int(timeoutMs), C.int(forceHttpVersion),
 		C.HttpMethod(method), cPostData, cHeaders)
 
 	var goErr string
@@ -73,30 +99,40 @@ func HTTPRequestLibcurl(url string, timeoutMs int, forceHttpVersion int, method 
 		LatencyNs:     int64(res.latency_ns),
 		StatusCode:    int(res.status_code),
 		Error:         goErr,
-		DNSTimeUs:     int64(res.dns_time_ns),
-		ConnectTimeUs: int64(res.connect_time_ns),
-		TLSTimeUs:     int64(res.tls_time_ns),
+		DNSTimeNs:     int64(res.dns_time_ns),
+		ConnectTimeNs: int64(res.connect_time_ns),
+		TLSTimeNs:     int64(res.tls_time_ns),
 		ResponseBody:  responseBody,
 		ResponseSize:  int(res.response_size),
 	}
 }
 
-// HTTPHeadRequestLibcurl 执行HEAD请求（向后兼容）
-func HTTPHeadRequestLibcurl(url string, timeoutMs int, forceHttpVersion int) ResultLibcurl {
-	return HTTPRequestLibcurl(url, timeoutMs, forceHttpVersion, HTTP_METHOD_HEAD, "", nil)
+// HTTP方法便捷函数
+func (c *ClientLibcurl) Head(url string, timeoutMs int, forceHttpVersion int) ResultLibcurl {
+	return c.Request(url, timeoutMs, forceHttpVersion, HTTP_METHOD_HEAD, "", nil)
 }
 
-// HTTPGetRequestLibcurl 执行GET请求
-func HTTPGetRequestLibcurl(url string, timeoutMs int, forceHttpVersion int) ResultLibcurl {
-	return HTTPRequestLibcurl(url, timeoutMs, forceHttpVersion, HTTP_METHOD_GET, "", nil)
+func (c *ClientLibcurl) Get(url string, timeoutMs int, forceHttpVersion int) ResultLibcurl {
+	return c.Request(url, timeoutMs, forceHttpVersion, HTTP_METHOD_GET, "", nil)
 }
 
-// HTTPPostRequestLibcurl 执行POST请求
-func HTTPPostRequestLibcurl(url string, timeoutMs int, forceHttpVersion int, postData string, headers []string) ResultLibcurl {
-	return HTTPRequestLibcurl(url, timeoutMs, forceHttpVersion, HTTP_METHOD_POST, postData, headers)
+func (c *ClientLibcurl) Post(url string, timeoutMs int, forceHttpVersion int, postData string, headers []string) ResultLibcurl {
+	return c.Request(url, timeoutMs, forceHttpVersion, HTTP_METHOD_POST, postData, headers)
 }
 
-// InitLibcurl 初始化libcurl客户端
+func (c *ClientLibcurl) Put(url string, timeoutMs int, forceHttpVersion int, postData string, headers []string) ResultLibcurl {
+	return c.Request(url, timeoutMs, forceHttpVersion, HTTP_METHOD_PUT, postData, headers)
+}
+
+func (c *ClientLibcurl) Delete(url string, timeoutMs int, forceHttpVersion int) ResultLibcurl {
+	return c.Request(url, timeoutMs, forceHttpVersion, HTTP_METHOD_DELETE, "", nil)
+}
+
+func (c *ClientLibcurl) Patch(url string, timeoutMs int, forceHttpVersion int, postData string, headers []string) ResultLibcurl {
+	return c.Request(url, timeoutMs, forceHttpVersion, HTTP_METHOD_PATCH, postData, headers)
+}
+
+// 全局环境管理
 func InitLibcurl() error {
 	r := C.http_client_init_libcurl()
 	if r != 0 {
@@ -105,7 +141,6 @@ func InitLibcurl() error {
 	return nil
 }
 
-// CleanupLibcurl 清理libcurl资源
 func CleanupLibcurl() {
 	C.http_client_cleanup_libcurl()
 }

@@ -50,6 +50,30 @@ check_docker() {
     print_success "Docker检查通过"
 }
 
+# 检查Docker Compose
+check_docker_compose() {
+    if ! command -v docker &> /dev/null; then
+        print_error "Docker未安装或不在PATH中"
+        exit 1
+    fi
+    
+    # 检查是否有docker compose命令（新版本）
+    if docker compose version &> /dev/null; then
+        print_success "Docker Compose检查通过 (v2)"
+        return 0
+    fi
+    
+    # 检查是否有docker-compose命令（旧版本）
+    if command -v docker-compose &> /dev/null; then
+        print_success "Docker Compose检查通过 (v1)"
+        return 0
+    fi
+    
+    print_error "Docker Compose未安装或不在PATH中"
+    print_info "请安装Docker Compose或确保docker compose命令可用"
+    exit 1
+}
+
 # 构建Go应用
 build_go() {
     print_info "构建Go应用..."
@@ -174,6 +198,72 @@ docker_test() {
     print_success "Docker测试完成！"
 }
 
+# 一键Docker Compose测试
+docker_compose_test() {
+    print_info "开始一键Docker Compose测试..."
+    
+    # 检查Docker Compose
+    check_docker_compose
+    
+    # 先构建Go应用，确保有main二进制文件
+    print_info "构建Go应用..."
+    check_deps
+    build_go
+    
+    # 构建Docker Compose服务
+    print_info "构建Docker Compose服务..."
+    if docker compose build; then
+        print_success "Docker Compose构建成功"
+    else
+        print_error "Docker Compose构建失败"
+        exit 1
+    fi
+    
+    # 启动服务
+    print_info "启动Docker Compose服务..."
+    if docker compose up -d; then
+        print_success "Docker Compose服务启动成功"
+    else
+        print_error "Docker Compose服务启动失败"
+        exit 1
+    fi
+    
+    # 等待服务启动
+    print_info "等待服务启动..."
+    sleep 5
+    
+    # 检查服务状态
+    print_info "检查服务状态..."
+    if docker compose ps; then
+        print_success "服务状态检查成功"
+    else
+        print_error "服务状态检查失败"
+        exit 1
+    fi
+    
+    # 查看服务日志
+    print_info "查看服务日志..."
+    docker compose logs --tail=20
+    
+    # 测试服务运行
+    print_info "测试服务运行..."
+    if docker compose exec -T http-latency-test echo "服务运行正常"; then
+        print_success "服务运行测试通过"
+    else
+        print_warning "服务运行测试失败，但继续执行"
+    fi
+    
+    # 停止服务
+    print_info "停止Docker Compose服务..."
+    if docker compose down; then
+        print_success "Docker Compose服务停止成功"
+    else
+        print_warning "Docker Compose服务停止失败，但继续执行"
+    fi
+    
+    print_success "Docker Compose测试完成！"
+}
+
 # 执行完整流程
 run_all() {
     print_info "开始执行完整流程..."
@@ -204,6 +294,7 @@ run_all() {
     check_docker
     build_docker
     test_docker
+    docker_compose_test
     echo
     
     print_success "完整流程执行完成！"
@@ -233,6 +324,7 @@ show_help() {
     echo "  $0 test        # 运行测试"
     echo "  $0 docker      # 构建Docker镜像"
     echo "  $0 docker-test # 一键Docker测试（构建+测试）"
+    echo "  $0 docker-compose-test # 🚀 一键Docker Compose测试（构建+启动+测试+清理）"
     echo "  $0 clean       # 清理构建产物"
     echo "  $0 rebuild     # 重新构建"
     echo "  $0 all         # 🚀 执行完整流程（清理+测试+构建+Docker）"
@@ -240,6 +332,7 @@ show_help() {
     echo ""
     echo "推荐使用："
     echo "  $0 all         # 一键完成所有流程"
+    echo "  $0 docker-compose-test # 🚀 Docker Compose完整测试"
     echo "  $0 docker-test # 仅Docker测试"
 }
 
