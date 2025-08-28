@@ -117,7 +117,7 @@ run_tests() {
 
 # 构建Docker镜像
 build_docker() {
-    local tag=${1:-gocpptest:latest}
+    local tag=${1:-cgolatencytest:latest}
     
     print_info "构建Docker镜像: $tag"
     
@@ -153,7 +153,7 @@ build_docker() {
 
 # 测试Docker镜像
 test_docker() {
-    local tag=${1:-gocpptest:latest}
+    local tag=${1:-cgolatencytest:latest}
     
     print_info "测试Docker镜像: $tag"
     
@@ -312,7 +312,7 @@ clean() {
     
     # 清理Docker镜像
     if command -v docker &> /dev/null; then
-        docker rmi gocpptest:latest 2>/dev/null || true
+        docker rmi cgolatencytest:latest 2>/dev/null || true
         print_info "Docker镜像已清理"
     fi
     
@@ -360,6 +360,9 @@ main() {
             ;;
         "docker-test")
             docker_test
+            ;;
+        "docker-compose-test")
+            docker_compose_test
             ;;
         "clean")
             clean

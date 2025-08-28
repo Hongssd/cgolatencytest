@@ -47,7 +47,7 @@ func main() {
 			defer client1.Close()
 			sumLatency := int64(0)
 			successCount := int64(0)
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 1000; i++ {
 
 				res := client1.Get(rc.url, 3000, 0)
 				if res.Error != "" {
