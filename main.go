@@ -65,15 +65,6 @@ func main() {
 		// {"BN DELIVERY API", "https://icanhazip.com"},
 	}
 
-	wsrunCases := []struct {
-		name string
-		url  string
-	}{
-		{"BN SPOT     WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms"},
-		{"BN FUTURE   WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms"},
-		{"BN DELIVERY WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@100ms"},
-	}
-	_ = wsrunCases
 	type TestResult struct {
 		successCount int64
 		sumLatency   int64
@@ -87,7 +78,7 @@ func main() {
 		resultMap[rc.name] = &TestResult{}
 	}
 
-	fmt.Println("\n开始延迟测试...")
+	fmt.Println("\n开始HTTP延迟测试...")
 	fmt.Printf("测试目标: %s\n", strings.Join(func() []string {
 		var names []string
 		for _, rc := range runCases {
@@ -133,10 +124,8 @@ func main() {
 	var wg sync.WaitGroup
 	for _, rc := range runCases {
 		wg.Add(1)
-		go func(testCase struct {
-			name string
-			url  string
-		}) {
+		testCase := rc
+		go func() {
 			defer wg.Done()
 			// 创建多个客户端实例
 			client1, err := http_client.NewClientLibcurl()
@@ -146,7 +135,7 @@ func main() {
 			defer client1.Close()
 
 			avgLatency := int64(0)
-			for i := 0; i < 30000; i++ {
+			for i := 0; i < 1000; i++ {
 				res := client1.Get(testCase.url, 3000, 0)
 				if res.Error != "" {
 					continue
@@ -168,7 +157,7 @@ func main() {
 				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
 			}
 
-		}(rc)
+		}()
 	}
 	wg.Wait()
 	statusCancel() // 停止实时状态显示
@@ -195,5 +184,49 @@ func main() {
 		}
 	}
 
-	fmt.Println("=== 🎉 测试程序执行完成 ===")
+	fmt.Println("=== 🎉 HTTP延迟测试程序执行完成 ===")
+
+	wsrunCases := []struct {
+		name string
+		url  string
+	}{
+		{"BN SPOT     WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms"},
+		{"BN FUTURE   WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms"},
+		{"BN DELIVERY WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms"},
+	}
+	_ = wsrunCases
+
+	fmt.Println("\n开始WebSocket延迟测试...")
+	wsclient, err := http_client.NewWebSocketClientLibcurl()
+	if err != nil {
+		panic(err)
+	}
+	defer wsclient.Close()
+	for _, rc := range wsrunCases {
+		wg.Add(1)
+		go func() {
+			// 创建多个WS客户端实例
+			client, err := http_client.NewWebSocketClientLibcurl()
+			if err != nil {
+				panic(err)
+			}
+			defer client.Close()
+			//接收100次消息
+			for i := 0; i < 100; i++ {
+				recv, ok, err := client.Recv()
+				if err != nil {
+					panic(err)
+				}
+				if !ok {
+					continue
+				}
+				fmt.Printf("[%s]recv msg size: %d\n", rc.name, len(recv))
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	fmt.Println("=== 🎉 WebSocket延迟测试程序执行完成 ===")
+
 }
