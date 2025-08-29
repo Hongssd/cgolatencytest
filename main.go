@@ -238,7 +238,7 @@ func main() {
 				if !ok {
 					continue
 				}
-				now := time.Now().UnixMilli()
+				now := time.Now().UnixNano()
 				// fmt.Printf("[%s]recv msg size: %s\n", rc.name, recv)
 				unmarshalMap := map[string]interface{}{}
 				err = json.Unmarshal([]byte(recv), &unmarshalMap)
@@ -261,7 +261,10 @@ func main() {
 					continue
 				}
 				msgTimestamp := int64(msgTimestampInterface.(float64))
-				targetLatency := now - msgTimestamp
+				//毫秒转纳秒
+				msgTimestampNano := msgTimestamp * 1000000
+
+				targetLatency := now - msgTimestampNano
 
 				//去除明显偏移的极值
 				if avgLatency > 0 && targetLatency > avgLatency*2 {
