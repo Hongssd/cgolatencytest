@@ -26,8 +26,8 @@ func TestNewWsClientInterface(t *testing.T) {
 			t.Logf("GET request returned error: %s", res.Error)
 		} else {
 			t.Logf("GET request successful: Status=%d, Latency=%d ns", res.StatusCode, res.LatencyNs)
-			if res.StatusCode != 200 {
-				t.Errorf("Expected status 200, got %d", res.StatusCode)
+			if res.StatusCode != 101 {
+				t.Errorf("Expected status 101, got %d", res.StatusCode)
 			}
 		}
 
