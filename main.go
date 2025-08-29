@@ -125,7 +125,7 @@ func main() {
 	var wg sync.WaitGroup
 	for _, rc := range runCases {
 		wg.Add(1)
-		testCase := rc
+		rc := rc
 		go func() {
 			defer wg.Done()
 			// 创建多个客户端实例
@@ -137,7 +137,7 @@ func main() {
 
 			avgLatency := int64(0)
 			for i := 0; i < 1000; i++ {
-				res := client1.Get(testCase.url, 3000, 0)
+				res := client1.Get(rc.url, 3000, 0)
 				if res.Error != "" {
 					continue
 				}
@@ -152,7 +152,7 @@ func main() {
 				}
 
 				// 更新统计数据
-				result := resultMap[testCase.name]
+				result := resultMap[rc.name]
 				atomic.AddInt64(&result.sumLatency, res.LatencyNs)
 				atomic.AddInt64(&result.successCount, 1)
 				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
@@ -197,6 +197,13 @@ func main() {
 	}
 	_ = wsrunCases
 
+	wsResultMap := make(map[string]*TestResult)
+
+	// 初始化wsResultMap
+	for _, rc := range wsrunCases {
+		wsResultMap[rc.name] = &TestResult{}
+	}
+
 	fmt.Println("\n开始WebSocket延迟测试...")
 	wsclient, err := http_client.NewWebSocketClientLibcurl()
 	if err != nil {
@@ -205,6 +212,7 @@ func main() {
 	defer wsclient.Close()
 	for _, rc := range wsrunCases {
 		wg.Add(1)
+		rc := rc
 		go func() {
 			defer wg.Done()
 			// 创建多个WS客户端实例
@@ -231,11 +239,11 @@ func main() {
 					continue
 				}
 				now := time.Now().UnixMilli()
-				fmt.Printf("[%s]recv msg size: %s\n", rc.name, recv)
+				// fmt.Printf("[%s]recv msg size: %s\n", rc.name, recv)
 				unmarshalMap := map[string]interface{}{}
 				err = json.Unmarshal([]byte(recv), &unmarshalMap)
 				if err != nil {
-					fmt.Printf("[%s]unmarshal error: %v\n", rc.name, err)
+					// fmt.Printf("[%s]unmarshal error: %v\n", rc.name, err)
 					continue
 				}
 				dataMapInterface, ok := unmarshalMap["data"]
@@ -254,13 +262,44 @@ func main() {
 				}
 				msgTimestamp := int64(msgTimestampInterface.(float64))
 				targetLatency := now - msgTimestamp
-				avgLatency = (avgLatency + targetLatency) / 2
-				fmt.Printf("[%s]targetLatency: %d avgLatency: %d\n", rc.name, targetLatency, avgLatency)
+
+				//去除明显偏移的极值
+				if avgLatency > 0 && targetLatency > avgLatency*2 {
+					continue
+				}
+
+				// 更新统计数据
+				result := wsResultMap[rc.name]
+				atomic.AddInt64(&result.sumLatency, targetLatency)
+				atomic.AddInt64(&result.successCount, 1)
+				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
 			}
 		}()
 	}
 
 	wg.Wait()
+
+	fmt.Printf("\r%s\n", strings.Repeat(" ", 100)) // 清除状态行
+	fmt.Println("\n" + strings.Repeat("=", 60))
+	fmt.Println("测试完成! 最终结果:")
+	fmt.Println(strings.Repeat("=", 60))
+
+	for _, rc := range wsrunCases {
+		v := wsResultMap[rc.name]
+		successCount := atomic.LoadInt64(&v.successCount)
+		sumLatency := atomic.LoadInt64(&v.sumLatency)
+
+		if successCount > 0 {
+			avgLatencyNs := sumLatency / successCount
+			fmt.Printf("📊 %s:\n", rc.name)
+			fmt.Printf("   ✅ 成功请求: %d/1000\n", successCount)
+			fmt.Printf("   ⚡ 平均延迟: %s\n", formatLatency(avgLatencyNs))
+			fmt.Printf("   📈 成功率: %.1f%%\n", float64(successCount)/10.0)
+			fmt.Println()
+		} else {
+			fmt.Printf("❌ %s: 所有请求都失败了\n", rc.name)
+		}
+	}
 
 	fmt.Println("=== 🎉 WebSocket延迟测试程序执行完成 ===")
 
