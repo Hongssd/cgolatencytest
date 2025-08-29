@@ -229,8 +229,9 @@ func main() {
 			fmt.Printf("[%s]connect to %s success: %d\n", rc.name, rc.url, res.StatusCode)
 
 			avgLatency := int64(0)
-			//接收100次消息
-			for i := 0; i < 100; i++ {
+			//接收1000次消息
+			successCount := 0
+			for successCount < 1000 {
 				recv, ok, err := client.Recv()
 				if err != nil {
 					panic(err)
@@ -276,6 +277,7 @@ func main() {
 				atomic.AddInt64(&result.sumLatency, targetLatency)
 				atomic.AddInt64(&result.successCount, 1)
 				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
+				successCount += 1
 			}
 		}()
 	}
