@@ -231,7 +231,7 @@ func main() {
 					continue
 				}
 				now := time.Now().UnixMilli()
-				fmt.Printf("[%s]recv msg size: %d\n", rc.name, len(recv))
+				fmt.Printf("[%s]recv msg size: %s\n", rc.name, recv)
 				unmarshalMap := map[string]interface{}{}
 				err = json.Unmarshal([]byte(recv), &unmarshalMap)
 				if err != nil {
