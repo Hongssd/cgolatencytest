@@ -187,6 +187,9 @@ func main() {
 
 	fmt.Println("=== 🎉 HTTP延迟测试程序执行完成 ===")
 
+	// ============================
+	// WebSocket 延迟测试部分
+	// ============================
 	wsrunCases := []struct {
 		name string
 		url  string
@@ -195,7 +198,17 @@ func main() {
 		{"BN FUTURE   WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms"},
 		{"BN DELIVERY WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms"},
 	}
-	_ = wsrunCases
+
+	// 初始化WebSocket libcurl
+	wsCtx, wsCancel := context.WithCancel(context.Background())
+	startSpinner(wsCtx, "正在初始化WebSocket libcurl...")
+	err = http_client.InitWebSocketLibcurl()
+	wsCancel()
+	if err != nil {
+		log.Fatal("WebSocket libcurl初始化失败:", err)
+	}
+	defer http_client.CleanupWebSocketLibcurl()
+	fmt.Println("✓ WebSocket libcurl初始化成功!")
 
 	wsResultMap := make(map[string]*TestResult)
 
@@ -205,48 +218,96 @@ func main() {
 	}
 
 	fmt.Println("\n开始WebSocket延迟测试...")
-	wsclient, err := http_client.NewWebSocketClientLibcurl()
-	if err != nil {
-		panic(err)
-	}
-	defer wsclient.Close()
+	fmt.Printf("测试目标: %s\n", strings.Join(func() []string {
+		var names []string
+		for _, rc := range wsrunCases {
+			names = append(names, rc.name)
+		}
+		return names
+	}(), ", "))
+	fmt.Println("=", strings.Repeat("=", 50))
+
+	// 启动WebSocket实时状态显示goroutine
+	wsStatusCtx, wsStatusCancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-wsStatusCtx.Done():
+				return
+			case <-ticker.C:
+				fmt.Print("\r")
+				for i, rc := range wsrunCases {
+					result := wsResultMap[rc.name]
+					result.mu.RLock()
+					successCount := atomic.LoadInt64(&result.successCount)
+					sumLatency := atomic.LoadInt64(&result.sumLatency)
+					result.mu.RUnlock()
+
+					if successCount > 0 {
+						avgLatency := sumLatency / successCount
+						fmt.Printf("%s: %d/%d (%s) ", rc.name, successCount, 1000, formatLatency(avgLatency))
+					} else {
+						fmt.Printf("%s: 0/1000 (连接中...) ", rc.name)
+					}
+					if i < len(wsrunCases)-1 {
+						fmt.Print("| ")
+					}
+				}
+			}
+		}
+	}()
+
 	for _, rc := range wsrunCases {
 		wg.Add(1)
 		rc := rc
 		go func() {
 			defer wg.Done()
-			// 创建多个WS客户端实例
+			// 创建WebSocket客户端实例
 			client, err := http_client.NewWebSocketClientLibcurl()
 			if err != nil {
-				panic(err)
+				log.Printf("[%s] 创建客户端失败: %v", rc.name, err)
+				return
 			}
 			defer client.Close()
 
+			// 建立连接
 			res := client.Connect(rc.url, 5000)
 			if res.Error != "" {
-				panic(res.Error)
+				log.Printf("[%s] 连接失败: %s", rc.name, res.Error)
+				return
 			}
-			fmt.Printf("[%s]connect to %s success: %d\n", rc.name, rc.url, res.StatusCode)
+			// 连接成功后不再单独打印，由状态显示器统一显示
 
 			avgLatency := int64(0)
 			//接收1000次消息
-			successCount := 0
-			for successCount < 1000 {
+			for {
+				// 检查是否已完成1000次
+				result := wsResultMap[rc.name]
+				if atomic.LoadInt64(&result.successCount) >= 1000 {
+					break
+				}
+
 				recv, ok, err := client.Recv()
 				if err != nil {
-					panic(err)
-				}
-				if !ok {
+					log.Printf("[%s] 接收消息失败: %v", rc.name, err)
 					continue
 				}
+				if !ok {
+					// 暂时无消息，继续等待
+					continue
+				}
+
 				now := time.Now().UnixNano()
-				// fmt.Printf("[%s]recv msg size: %s\n", rc.name, recv)
 				unmarshalMap := map[string]interface{}{}
 				err = json.Unmarshal([]byte(recv), &unmarshalMap)
 				if err != nil {
-					// fmt.Printf("[%s]unmarshal error: %v\n", rc.name, err)
-					continue
+					continue // 跳过无效消息
 				}
+
+				// 解析消息时间戳
 				dataMapInterface, ok := unmarshalMap["data"]
 				if !ok {
 					continue
@@ -273,20 +334,19 @@ func main() {
 				}
 
 				// 更新统计数据
-				result := wsResultMap[rc.name]
 				atomic.AddInt64(&result.sumLatency, targetLatency)
 				atomic.AddInt64(&result.successCount, 1)
 				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
-				successCount += 1
 			}
 		}()
 	}
 
 	wg.Wait()
+	wsStatusCancel() // 停止WebSocket实时状态显示
 
 	fmt.Printf("\r%s\n", strings.Repeat(" ", 100)) // 清除状态行
 	fmt.Println("\n" + strings.Repeat("=", 60))
-	fmt.Println("测试完成! 最终结果:")
+	fmt.Println("WebSocket测试完成! 最终结果:")
 	fmt.Println(strings.Repeat("=", 60))
 
 	for _, rc := range wsrunCases {
@@ -297,12 +357,12 @@ func main() {
 		if successCount > 0 {
 			avgLatencyNs := sumLatency / successCount
 			fmt.Printf("📊 %s:\n", rc.name)
-			fmt.Printf("   ✅ 成功请求: %d/1000\n", successCount)
+			fmt.Printf("   ✅ 成功接收: %d/1000\n", successCount)
 			fmt.Printf("   ⚡ 平均延迟: %s\n", formatLatency(avgLatencyNs))
 			fmt.Printf("   📈 成功率: %.1f%%\n", float64(successCount)/10.0)
 			fmt.Println()
 		} else {
-			fmt.Printf("❌ %s: 所有请求都失败了\n", rc.name)
+			fmt.Printf("❌ %s: 所有WebSocket消息接收都失败了\n", rc.name)
 		}
 	}
 
