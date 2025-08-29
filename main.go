@@ -211,6 +211,13 @@ func main() {
 				panic(err)
 			}
 			defer client.Close()
+
+			res := client.Connect(rc.url, 5000)
+			if res.Error != "" {
+				panic(res.Error)
+			}
+			fmt.Printf("[%s]connect to %s success: %d\n", rc.name, rc.url, res.StatusCode)
+
 			//接收100次消息
 			for i := 0; i < 100; i++ {
 				recv, ok, err := client.Recv()
