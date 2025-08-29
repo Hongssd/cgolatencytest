@@ -3,6 +3,7 @@ package http_client
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // 测试新的客户端接口
@@ -21,7 +22,7 @@ func TestNewWsClientInterface(t *testing.T) {
 	defer client.Close()
 
 	t.Run("Test GET request", func(t *testing.T) {
-		res := client.Connect("wss://stream.binance.com:9443/stream", 10000)
+		res := client.Connect("wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms", 10000)
 		if res.Error != "" {
 			t.Logf("GET request returned error: %s", res.Error)
 		} else {
@@ -46,6 +47,7 @@ func TestNewWsClientInterface(t *testing.T) {
 		}
 		t.Logf("Send request successful: code=%d", code)
 
+		time.Sleep(100 * time.Millisecond)
 		//接受10次消息
 		for i := 0; i < 10; i++ {
 			recv, ok, err := client.Recv()
@@ -59,6 +61,7 @@ func TestNewWsClientInterface(t *testing.T) {
 			t.Logf("Recv request successful: %s", recv)
 		}
 
+		time.Sleep(100 * time.Millisecond)
 		//取消订阅
 		code, err = client.Send(`
 		{
