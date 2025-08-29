@@ -136,6 +136,8 @@ func main() {
 			}
 			defer client1.Close()
 
+			resultLatency := []int64{}
+			avgLatency := int64(0)
 			for i := 0; i < 1000; i++ {
 				res := client1.Get(testCase.url, 3000, 0)
 				if res.Error != "" {
@@ -147,9 +149,25 @@ func main() {
 				}
 
 				// 更新统计数据
+
+				resultLatency = append(resultLatency, res.LatencyNs)
 				result := resultMap[testCase.name]
 				atomic.AddInt64(&result.sumLatency, res.LatencyNs)
 				atomic.AddInt64(&result.successCount, 1)
+			}
+
+			//重新初始化resultLatency 去除明显偏移的极值
+			resultMap[rc.name] = &TestResult{}
+			for _, latency := range resultLatency {
+
+				if latency > avgLatency*2 {
+					continue
+				}
+
+				result := resultMap[testCase.name]
+				atomic.AddInt64(&result.sumLatency, latency)
+				atomic.AddInt64(&result.successCount, 1)
+
 			}
 		}(rc)
 	}
