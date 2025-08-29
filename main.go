@@ -248,12 +248,12 @@ func main() {
 					continue
 				}
 
-				msgTimestamp, ok := dataMap["E"]
+				msgTimestampInterface, ok := dataMap["E"]
 				if !ok {
 					continue
 				}
-
-				targetLatency := now - msgTimestamp.(int64)
+				msgTimestamp := int64(msgTimestampInterface.(float64))
+				targetLatency := now - msgTimestamp
 				avgLatency = (avgLatency + targetLatency) / 2
 				fmt.Printf("[%s]targetLatency: %d avgLatency: %d\n", rc.name, targetLatency, avgLatency)
 			}
