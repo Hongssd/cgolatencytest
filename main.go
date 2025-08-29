@@ -137,7 +137,7 @@ func main() {
 			defer client1.Close()
 
 			avgLatency := int64(0)
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 30000; i++ {
 				res := client1.Get(testCase.url, 3000, 0)
 				if res.Error != "" {
 					continue
