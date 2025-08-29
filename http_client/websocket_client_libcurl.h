@@ -8,6 +8,22 @@
 extern "C" {
 #endif
 
+// WebSocket 错误码定义
+typedef enum {
+    WEBSOCKET_OK = 0,
+    WEBSOCKET_ERROR_INVALID_CLIENT = -1,
+    WEBSOCKET_ERROR_INVALID_PARAMS = -2,
+    WEBSOCKET_ERROR_SEND_FAILED = -3,
+    WEBSOCKET_ERROR_NETWORK = -4,
+    WEBSOCKET_ERROR_TIMEOUT = -5,
+    WEBSOCKET_ERROR_MEMORY = -6,
+    WEBSOCKET_ERROR_BUFFER_OVERFLOW = -7
+} WebSocketError;
+
+// WebSocket 缓冲区大小常量
+#define WEBSOCKET_INITIAL_BUFFER_SIZE 4096
+#define WEBSOCKET_MAX_BUFFER_SIZE (1024 * 1024) // 1MB限制
+
 // WebSocket 客户端句柄
 typedef struct WebSocketClientLibcurl WebSocketClientLibcurl;
 

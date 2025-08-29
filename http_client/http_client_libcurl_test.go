@@ -20,7 +20,7 @@ func TestNewClientInterface(t *testing.T) {
 	defer client.Close()
 
 	t.Run("Test GET request", func(t *testing.T) {
-		res := client.Get("https://icanhazip.com", 10000, 0)
+		res := client.Get("https://api.binance.com/api/v3/ping", 10000, 0)
 		if res.Error != "" {
 			t.Logf("GET request returned error: %s", res.Error)
 		} else {

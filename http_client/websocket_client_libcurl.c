@@ -21,8 +21,12 @@ static int64_t get_time_ns() {
 static char* make_error(const char* msg) {
     if (!msg) return NULL;
     size_t len = strlen(msg);
+    if (len == 0) return NULL;
+    
     char* err = malloc(len + 1);
-    if (err) strcpy(err, msg);
+    if (!err) return NULL; // 内存分配失败
+    
+    strcpy(err, msg);
     return err;
 }
 
@@ -67,6 +71,10 @@ WebSocketResultLibcurl websocket_connect_libcurl(WebSocketClientLibcurl* client,
     curl_easy_setopt(client->curl_handle, CURLOPT_URL, url);
     curl_easy_setopt(client->curl_handle, CURLOPT_CONNECT_ONLY, 2L); // 启用 WebSocket 模式
     curl_easy_setopt(client->curl_handle, CURLOPT_TIMEOUT_MS, (long)timeout_ms);
+    
+    // 设置WebSocket特定的选项
+    curl_easy_setopt(client->curl_handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_easy_setopt(client->curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
 
     CURLcode res = curl_easy_perform(client->curl_handle);
     if (res == CURLE_OK) {
@@ -81,8 +89,10 @@ WebSocketResultLibcurl websocket_connect_libcurl(WebSocketClientLibcurl* client,
 
 // 发送 WebSocket 消息（修正版）
 int websocket_send_libcurl(WebSocketClientLibcurl* client, const char* msg, size_t len, int is_text) {
-    if (!client || !client->is_initialized || !client->curl_handle) return -1;
-    if (!msg || len == 0) return -2;
+    if (!client || !client->is_initialized || !client->curl_handle) 
+        return WEBSOCKET_ERROR_INVALID_CLIENT;
+    if (!msg || len == 0) 
+        return WEBSOCKET_ERROR_INVALID_PARAMS;
 
     size_t sent = 0;
     unsigned int flags = is_text ? CURLWS_TEXT : CURLWS_BINARY;
@@ -94,39 +104,106 @@ int websocket_send_libcurl(WebSocketClientLibcurl* client, const char* msg, size
                                0,     // fragsize: 非分片发送用 0
                                flags);
 
-    if (rc == CURLE_OK) {
-        return (int)sent;
-    } else if (rc == CURLE_AGAIN) {
-        return 0; // 需要重试
+    switch (rc) {
+        case CURLE_OK:
+            return (int)sent;
+        case CURLE_AGAIN:
+            return 0; // 需要重试
+        case CURLE_OPERATION_TIMEDOUT:
+            return WEBSOCKET_ERROR_TIMEOUT;
+        case CURLE_OUT_OF_MEMORY:
+            return WEBSOCKET_ERROR_MEMORY;
+        default:
+            return WEBSOCKET_ERROR_SEND_FAILED;
     }
-    return -3; // 出错
 }
 
-// 接收 WebSocket 消息（修正版）
+// 接收 WebSocket 消息（动态缓冲区版本）
 char* websocket_recv_libcurl(WebSocketClientLibcurl* client, size_t* out_len, int* out_is_text) {
     if (!client || !client->is_initialized || !client->curl_handle) return NULL;
 
-    char buffer[4096];
-    size_t nread = 0;
-    const struct curl_ws_frame *frame = NULL;
+    size_t buffer_size = WEBSOCKET_INITIAL_BUFFER_SIZE;
+    char* buffer = malloc(buffer_size);
+    if (!buffer) return NULL;
 
-    CURLcode rc = curl_ws_recv(client->curl_handle, buffer, sizeof(buffer), &nread, &frame);
-    if (rc == CURLE_AGAIN) {
-        return NULL; // 暂无数据
+    size_t total_received = 0;
+    const struct curl_ws_frame *frame = NULL;
+    int complete_frame = 0;
+    
+    // 循环接收直到获得完整消息或出错
+    while (!complete_frame) {
+        size_t nread = 0;
+        size_t available_space = buffer_size - total_received;
+        
+        // 如果剩余空间不足，扩展缓冲区
+        if (available_space < 1024 && buffer_size < WEBSOCKET_MAX_BUFFER_SIZE) {
+            size_t new_size = buffer_size * 2;
+            if (new_size > WEBSOCKET_MAX_BUFFER_SIZE) {
+                new_size = WEBSOCKET_MAX_BUFFER_SIZE;
+            }
+            
+            char* new_buffer = realloc(buffer, new_size);
+            if (!new_buffer) {
+                free(buffer);
+                return NULL; // 内存扩展失败
+            }
+            buffer = new_buffer;
+            buffer_size = new_size;
+            available_space = buffer_size - total_received;
+        }
+        
+        // 检查是否达到最大缓冲区限制
+        if (available_space < 1024) {
+            free(buffer);
+            return NULL; // 缓冲区溢出
+        }
+
+        CURLcode rc = curl_ws_recv(client->curl_handle, 
+                                   buffer + total_received, 
+                                   available_space - 1, // 保留一个字节用于null终止符
+                                   &nread, &frame);
+        
+        if (rc == CURLE_AGAIN && total_received == 0) {
+            free(buffer);
+            return NULL; // 暂无数据
+        }
+        
+        if (rc != CURLE_OK) {
+            free(buffer);
+            return NULL; // 接收错误
+        }
+        
+        if (nread == 0) {
+            complete_frame = 1; // 没有更多数据
+        } else {
+            total_received += nread;
+            // 检查是否是完整的帧 (简化版本，实际实现可能更复杂)
+            if (!frame || !(frame->flags & CURLWS_CONT)) {
+                complete_frame = 1;
+            }
+        }
     }
-    if (rc != CURLE_OK || nread == 0) {
+    
+    if (total_received == 0) {
+        free(buffer);
         return NULL;
     }
-
-    char* msg = malloc(nread + 1);
-    if (!msg) return NULL;
-    memcpy(msg, buffer, nread);
-    msg[nread] = '\0';
-
-    if (out_len) *out_len = nread;
+    
+    // 确保以null结尾
+    buffer[total_received] = '\0';
+    
+    // 优化内存使用：缩小到实际大小
+    if (total_received + 1 < buffer_size) {
+        char* optimized_buffer = realloc(buffer, total_received + 1);
+        if (optimized_buffer) {
+            buffer = optimized_buffer;
+        }
+    }
+    
+    if (out_len) *out_len = total_received;
     if (out_is_text) *out_is_text = (frame && (frame->flags & CURLWS_TEXT)) != 0;
-
-    return msg;
+    
+    return buffer;
 }
 
 void websocket_free_error_libcurl(char* ptr) {

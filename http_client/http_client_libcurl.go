@@ -1,7 +1,7 @@
 package http_client
 
 /*
-#cgo LDFLAGS: -lcurl
+#cgo LDFLAGS: -lcurl -lssl -lcrypto
 #include "http_client_libcurl.h"
 #include <stdlib.h>
 */

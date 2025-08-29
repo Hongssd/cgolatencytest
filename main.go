@@ -57,14 +57,23 @@ func main() {
 		name string
 		url  string
 	}{
-		{"BN SPOT API", "https://api.binance.com/api/v3/ping"},
-		{"BN FUTURE API", "https://fapi.binance.com/fapi/v1/ping"},
+		{"BN SPOT     API", "https://api.binance.com/api/v3/ping"},
+		{"BN FUTURE   API", "https://fapi.binance.com/fapi/v1/ping"},
 		{"BN DELIVERY API", "https://dapi.binance.com/dapi/v1/ping"},
 		// {"BN SPOT API", "https://icanhazip.com"},
 		// {"BN FUTURE API", "https://icanhazip.com"},
 		// {"BN DELIVERY API", "https://icanhazip.com"},
 	}
 
+	wsrunCases := []struct {
+		name string
+		url  string
+	}{
+		{"BN SPOT     WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms"},
+		{"BN FUTURE   WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms"},
+		{"BN DELIVERY WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@100ms"},
+	}
+	_ = wsrunCases
 	type TestResult struct {
 		successCount int64
 		sumLatency   int64

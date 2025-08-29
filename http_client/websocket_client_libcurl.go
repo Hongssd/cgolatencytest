@@ -1,13 +1,26 @@
 package http_client
 
 /*
-#cgo LDFLAGS: -lcurl
+#cgo LDFLAGS: -lcurl -lssl -lcrypto
 #include "websocket_client_libcurl.h"
 #include <stdlib.h>
 */
 import "C"
 import (
+	"fmt"
 	"unsafe"
+)
+
+// WebSocket 错误码常量（与C代码保持一致）
+const (
+	WEBSOCKET_OK                    = 0
+	WEBSOCKET_ERROR_INVALID_CLIENT  = -1
+	WEBSOCKET_ERROR_INVALID_PARAMS  = -2
+	WEBSOCKET_ERROR_SEND_FAILED     = -3
+	WEBSOCKET_ERROR_NETWORK         = -4
+	WEBSOCKET_ERROR_TIMEOUT         = -5
+	WEBSOCKET_ERROR_MEMORY          = -6
+	WEBSOCKET_ERROR_BUFFER_OVERFLOW = -7
 )
 
 // WebSocketResultLibcurl 结构体（与C保持一致）
@@ -15,6 +28,33 @@ type WebSocketResultLibcurl struct {
 	LatencyNs  int64
 	StatusCode int
 	Error      string
+}
+
+// WebSocketError 封装WebSocket特定错误
+type WebSocketError struct {
+	Code    int
+	Message string
+}
+
+func (e *WebSocketError) Error() string {
+	switch e.Code {
+	case WEBSOCKET_ERROR_INVALID_CLIENT:
+		return "WebSocket client is invalid or not initialized"
+	case WEBSOCKET_ERROR_INVALID_PARAMS:
+		return "Invalid parameters provided"
+	case WEBSOCKET_ERROR_SEND_FAILED:
+		return "Failed to send WebSocket message"
+	case WEBSOCKET_ERROR_NETWORK:
+		return "Network error occurred"
+	case WEBSOCKET_ERROR_TIMEOUT:
+		return "Operation timed out"
+	case WEBSOCKET_ERROR_MEMORY:
+		return "Memory allocation failed"
+	case WEBSOCKET_ERROR_BUFFER_OVERFLOW:
+		return "Buffer overflow detected"
+	default:
+		return fmt.Sprintf("Unknown WebSocket error (code: %d)", e.Code)
+	}
 }
 
 // WebSocketClientLibcurl Go封装的客户端
@@ -81,7 +121,7 @@ func (c *WebSocketClientLibcurl) Connect(url string, timeoutMs int) WebSocketRes
 // isText = true 发送文本，false 发送二进制
 func (c *WebSocketClientLibcurl) Send(msg string, isText bool) (int, error) {
 	if c.client == nil {
-		return -1, &CError{Code: -1}
+		return -1, &WebSocketError{Code: WEBSOCKET_ERROR_INVALID_CLIENT}
 	}
 
 	cMsg := C.CString(msg)
@@ -91,7 +131,7 @@ func (c *WebSocketClientLibcurl) Send(msg string, isText bool) (int, error) {
 		cMsg, C.size_t(len(msg)), C.int(boolToInt(isText)))
 
 	if sent < 0 {
-		return int(sent), &CError{Code: int(sent)}
+		return int(sent), &WebSocketError{Code: int(sent)}
 	}
 	return int(sent), nil
 }
@@ -100,7 +140,7 @@ func (c *WebSocketClientLibcurl) Send(msg string, isText bool) (int, error) {
 // 返回消息字符串、是否文本、错误
 func (c *WebSocketClientLibcurl) Recv() (string, bool, error) {
 	if c.client == nil {
-		return "", false, &CError{Code: -1}
+		return "", false, &WebSocketError{Code: WEBSOCKET_ERROR_INVALID_CLIENT}
 	}
 
 	var outLen C.size_t
@@ -108,7 +148,7 @@ func (c *WebSocketClientLibcurl) Recv() (string, bool, error) {
 
 	msg := C.websocket_recv_libcurl((*C.WebSocketClientLibcurl)(c.client), &outLen, &outIsText)
 	if msg == nil {
-		return "", false, nil
+		return "", false, nil // 暂无数据，不是错误
 	}
 	defer C.websocket_free_message_libcurl(msg)
 
