@@ -235,9 +235,20 @@ func main() {
 				unmarshalMap := map[string]interface{}{}
 				err = json.Unmarshal([]byte(recv), &unmarshalMap)
 				if err != nil {
+					fmt.Printf("[%s]unmarshal error: %v\n", rc.name, err)
 					continue
 				}
-				msgTimestamp, ok := unmarshalMap["E"]
+				dataMapInterface, ok := unmarshalMap["data"]
+				if !ok {
+					continue
+				}
+
+				dataMap, ok := dataMapInterface.(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				msgTimestamp, ok := dataMap["E"]
 				if !ok {
 					continue
 				}
