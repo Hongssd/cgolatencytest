@@ -56,6 +56,7 @@ func TestNewWsClientInterface(t *testing.T) {
 			}
 			if !ok {
 				t.Logf("Recv request failed: no message received")
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 			t.Logf("Recv request successful: %s", recv)
@@ -107,7 +108,7 @@ func TestWsClientLifecycle(t *testing.T) {
 	if res1.Error != "" && res2.Error != "" {
 		t.Logf("Both clients had errors (network issues): %s, %s", res1.Error, res2.Error)
 	} else {
-		t.Logf("At least one client worked successfully")
+		t.Logf("At least one client worked successfully:%s, %s", res1.StatusCode, res2.StatusCode)
 	}
 
 	// 关闭客户端

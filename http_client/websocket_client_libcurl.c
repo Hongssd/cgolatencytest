@@ -118,7 +118,7 @@ int websocket_send_libcurl(WebSocketClientLibcurl* client, const char* msg, size
     }
 }
 
-// 接收 WebSocket 消息（动态缓冲区版本）
+// 接收 WebSocket 消息（改进版本）
 char* websocket_recv_libcurl(WebSocketClientLibcurl* client, size_t* out_len, int* out_is_text) {
     if (!client || !client->is_initialized || !client->curl_handle) return NULL;
 
@@ -128,10 +128,11 @@ char* websocket_recv_libcurl(WebSocketClientLibcurl* client, size_t* out_len, in
 
     size_t total_received = 0;
     const struct curl_ws_frame *frame = NULL;
-    int complete_frame = 0;
+    int retry_count = 0;
+    const int max_retries = 10; // 最多重试10次
     
     // 循环接收直到获得完整消息或出错
-    while (!complete_frame) {
+    while (retry_count < max_retries) {
         size_t nread = 0;
         size_t available_space = buffer_size - total_received;
         
@@ -163,24 +164,47 @@ char* websocket_recv_libcurl(WebSocketClientLibcurl* client, size_t* out_len, in
                                    available_space - 1, // 保留一个字节用于null终止符
                                    &nread, &frame);
         
-        if (rc == CURLE_AGAIN && total_received == 0) {
-            free(buffer);
-            return NULL; // 暂无数据
+        // 处理不同的返回码
+        if (rc == CURLE_AGAIN) {
+            // 暂无数据，增加重试计数并继续
+            retry_count++;
+            // 如果已经有数据，检查是否是完整帧
+            if (total_received > 0 && frame && !(frame->flags & CURLWS_CONT)) {
+                break; // 已有完整帧，可以返回
+            }
+            // 短暂等待后重试（使用简单的延时模拟）
+            struct timespec ts = {0, 10000000}; // 10ms
+            nanosleep(&ts, NULL);
+            continue;
         }
         
         if (rc != CURLE_OK) {
+            // 其他错误，但如果已经有数据，尝试返回
+            if (total_received > 0) {
+                break;
+            }
             free(buffer);
-            return NULL; // 接收错误
+            return NULL; // 接收错误且无数据
         }
         
-        if (nread == 0) {
-            complete_frame = 1; // 没有更多数据
-        } else {
+        // 重置重试计数（收到数据时）
+        if (nread > 0) {
+            retry_count = 0;
             total_received += nread;
-            // 检查是否是完整的帧 (简化版本，实际实现可能更复杂)
-            if (!frame || !(frame->flags & CURLWS_CONT)) {
-                complete_frame = 1;
+            
+            // 检查是否是完整的帧
+            if (frame) {
+                // 如果不是续传帧，表示这是完整的消息或消息的最后一部分
+                if (!(frame->flags & CURLWS_CONT)) {
+                    break;
+                }
+            } else {
+                // 没有帧信息，假设是完整的
+                break;
             }
+        } else {
+            // nread == 0，可能是连接关闭或暂无数据
+            retry_count++;
         }
     }
     
