@@ -3,6 +3,7 @@ package main
 import (
 	"cgolatencytest/http_client"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -205,6 +206,7 @@ func main() {
 	for _, rc := range wsrunCases {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			// 创建多个WS客户端实例
 			client, err := http_client.NewWebSocketClientLibcurl()
 			if err != nil {
@@ -218,6 +220,7 @@ func main() {
 			}
 			fmt.Printf("[%s]connect to %s success: %d\n", rc.name, rc.url, res.StatusCode)
 
+			avgLatency := int64(0)
 			//接收100次消息
 			for i := 0; i < 100; i++ {
 				recv, ok, err := client.Recv()
@@ -227,7 +230,21 @@ func main() {
 				if !ok {
 					continue
 				}
+				now := time.Now().UnixMilli()
 				fmt.Printf("[%s]recv msg size: %d\n", rc.name, len(recv))
+				unmarshalMap := map[string]interface{}{}
+				err = json.Unmarshal([]byte(recv), &unmarshalMap)
+				if err != nil {
+					continue
+				}
+				msgTimestamp, ok := unmarshalMap["E"]
+				if !ok {
+					continue
+				}
+
+				targetLatency := now - msgTimestamp.(int64)
+				avgLatency = (avgLatency + targetLatency) / 2
+				fmt.Printf("[%s]targetLatency: %d avgLatency: %d\n", rc.name, targetLatency, avgLatency)
 			}
 		}()
 	}
