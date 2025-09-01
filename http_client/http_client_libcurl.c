@@ -19,7 +19,7 @@ typedef struct {
 
 static int64_t get_time_ns() {
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    clock_gettime(CLOCK_REALTIME, &ts);  // 使用REALTIME获取Unix时间戳
     return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
 }
 
