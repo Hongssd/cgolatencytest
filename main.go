@@ -207,7 +207,13 @@ func main() {
 
 				//计算服务器时间差纳秒均值
 				serverTimeDiffAvgNs := serverTimeDiffSum / serverTimeSuccessCount
-				rc.serverTimeDiff = serverTimeDiffAvgNs
+				//rc是局部变量，需要修改原值
+				for i, rc2 := range runCases {
+					if rc2.name == rc.name {
+						runCases[i].serverTimeDiff = serverTimeDiffAvgNs
+						break
+					}
+				}
 				fmt.Printf("[%s] 服务器时间差: %d ns ≈ %.3f us ≈ %.6f ms\n",
 					rc.name, serverTimeDiffAvgNs, float64(serverTimeDiffAvgNs)/1000, float64(serverTimeDiffAvgNs)/1000000)
 			}
