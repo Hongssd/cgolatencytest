@@ -218,6 +218,7 @@ func main() {
 					rc.name, serverTimeDiffAvgNs, float64(serverTimeDiffAvgNs)/1000, float64(serverTimeDiffAvgNs)/1000000)
 			}
 
+			time.Sleep(5 * time.Second)
 			avgLatency := int64(0)
 			for i := 0; i < 1000; i++ {
 				res := client1.Get(rc.url, 3000, 0)
@@ -291,7 +292,7 @@ func main() {
 			}
 		}
 	}
-
+	time.Sleep(2 * time.Second)
 	// 初始化WebSocket libcurl
 	wsCtx, wsCancel := context.WithCancel(context.Background())
 	startSpinner(wsCtx, "正在初始化WebSocket libcurl...")
