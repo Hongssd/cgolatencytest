@@ -83,14 +83,16 @@ HttpResultLibcurl http_request_libcurl(HttpClientLibcurl* client, const char* ur
     HttpResultLibcurl result = {0};
     result.latency_ns = -1;
     
+    // 记录发起请求时刻的纳秒时间戳
+    int64_t start_time = get_time_ns();
+    result.request_time_ns = start_time;
+    
     if (!client || !client->is_initialized || !client->curl_handle || !url) {
         result.error_message = make_error(!client ? "Invalid client" : 
                                         !client->is_initialized ? "Client not initialized" :
                                         !client->curl_handle ? "CURL handle not available" : "Invalid URL");
         return result;
     }
-    
-    int64_t start_time = get_time_ns();
     
     curl_easy_reset(client->curl_handle);
     curl_easy_setopt(client->curl_handle, CURLOPT_URL, url);

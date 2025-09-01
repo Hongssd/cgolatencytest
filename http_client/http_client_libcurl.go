@@ -23,6 +23,7 @@ const (
 // ResultLibcurl 结构体
 type ResultLibcurl struct {
 	LatencyNs     int64
+	RequestTimeNs int64
 	StatusCode    int
 	Error         string
 	DNSTimeNs     int64
@@ -97,6 +98,7 @@ func (c *ClientLibcurl) Request(url string, timeoutMs int, forceHttpVersion int,
 
 	return ResultLibcurl{
 		LatencyNs:     int64(res.latency_ns),
+		RequestTimeNs: int64(res.request_time_ns),
 		StatusCode:    int(res.status_code),
 		Error:         goErr,
 		DNSTimeNs:     int64(res.dns_time_ns),
