@@ -55,13 +55,15 @@ func main() {
 	defer http_client.CleanupLibcurl()
 	fmt.Println("✓ libcurl初始化成功!")
 	runCases := []struct {
-		name string
-		url  string
+		name           string
+		url            string
+		serverTimeUrl  string
+		serverTimeDiff int64
 	}{
-		{"BN SPOT      API", "https://api.binance.com/api/v3/ping"},
-		{"BN FUTURE    API", "https://fapi.binance.com/fapi/v1/ping"},
-		{"BN DELIVERY  API", "https://dapi.binance.com/dapi/v1/ping"},
-		{"BN PORTFOLIO API", "https://papi.binance.com/papi/v1/ping"},
+		{"BN SPOT      API", "https://api.binance.com/api/v3/ping", "https://api.binance.com/api/v3/time", 0},
+		{"BN FUTURE    API", "https://fapi.binance.com/fapi/v1/ping", "https://fapi.binance.com/fapi/v1/time", 0},
+		{"BN DELIVERY  API", "https://dapi.binance.com/dapi/v1/ping", "https://dapi.binance.com/dapi/v1/time", 0},
+		{"BN PORTFOLIO API", "https://papi.binance.com/papi/v1/ping", "", 0},
 		// {"BN SPOT API", "https://icanhazip.com"},
 		// {"BN FUTURE API", "https://icanhazip.com"},
 		// {"BN DELIVERY API", "https://icanhazip.com"},
@@ -135,6 +137,58 @@ func main() {
 				panic(err)
 			}
 			defer client1.Close()
+
+			fmt.Println("开始获取服务器时间差...")
+			//若serverTimeUrl不为空字符串 请求五十次serverTime 排除异常值，取均值
+			if rc.serverTimeUrl != "" {
+				serverTimeDiffSum := int64(0)
+				serverTimeSuccessCount := int64(0)
+				for i := 0; i < 50; i++ {
+					serverTimeRes := client1.Get(rc.serverTimeUrl, 3000, 0)
+					if serverTimeRes.Error != "" {
+						log.Printf("[%s] 获取服务器时间差失败: %s", rc.name, serverTimeRes.Error)
+						continue
+					}
+					if serverTimeRes.StatusCode == 200 {
+						serverTimeBodyMap := map[string]interface{}{}
+						err := json.Unmarshal([]byte(serverTimeRes.ResponseBody), &serverTimeBodyMap)
+						if err != nil {
+							log.Printf("[%s] 解析服务器时间差失败: [res:%s]%v", rc.name, serverTimeRes.ResponseBody, serverTimeRes.ResponseBody)
+							continue
+						}
+						serverTimeTimestampInterface, ok := serverTimeBodyMap["serverTime"]
+						if !ok {
+							continue
+						}
+						//获取服务器毫秒时间戳
+						serverTimeTimestamp := int64(serverTimeTimestampInterface.(float64))
+						//转为纳秒时间戳
+						serverTimeTimestampNs := serverTimeTimestamp * 1000000
+
+						//获取请求的开始纳秒时间戳
+						requestStartTimestampNs := serverTimeRes.RequestTimeNs
+
+						//计算请求结束时的纳秒时间戳
+						requestEndTimestampNs := serverTimeRes.LatencyNs + requestStartTimestampNs
+
+						//计算请求一个来回的中间点纳秒时间戳
+						requestMidTimestampNs := (requestEndTimestampNs + requestStartTimestampNs) / 2
+
+						//计算服务器时间差
+						serverTimeDiff := serverTimeTimestampNs - requestMidTimestampNs
+
+						//累加服务器时间差纳秒
+						serverTimeDiffSum += serverTimeDiff
+						serverTimeSuccessCount++
+					}
+				}
+
+				//计算服务器时间差纳秒均值
+				serverTimeDiffAvg := serverTimeDiffSum / serverTimeSuccessCount
+				rc.serverTimeDiff = serverTimeDiffAvg
+				fmt.Printf("[%s] 服务器时间差: %d ns ≈ %.3f us ≈ %.6f ms\n",
+					rc.name, serverTimeDiffAvg, float64(serverTimeDiffAvg)/1000, float64(serverTimeDiffAvg)/1000000)
+			}
 
 			avgLatency := int64(0)
 			for i := 0; i < 1000; i++ {
