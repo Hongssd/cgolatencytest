@@ -188,7 +188,7 @@ func main() {
 						requestMidTimestampNs := (requestEndTimestampNs + requestStartTimestampNs) / 2
 
 						//计算服务器时间差
-						serverTimeDiffNs := serverTimeTimestampNs - requestMidTimestampNs
+						serverTimeDiffNs := requestMidTimestampNs - serverTimeTimestampNs
 
 						// fmt.Printf("[%s] 服务器时间戳: %d ns ≈ %.3f us ≈ %.6f ms 本地请求中点时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
 						// 	rc.name,
