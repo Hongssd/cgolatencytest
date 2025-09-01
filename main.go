@@ -146,14 +146,14 @@ func main() {
 				for i := 0; i < 50; i++ {
 					serverTimeRes := client1.Get(rc.serverTimeUrl, 3000, 0)
 					if serverTimeRes.Error != "" {
-						log.Printf("[%s] 获取服务器时间差失败: %s", rc.name, serverTimeRes.Error)
+						fmt.Printf("[%s] 获取服务器时间差失败: %s", rc.name, serverTimeRes.Error)
 						continue
 					}
 					if serverTimeRes.StatusCode == 200 {
 						serverTimeBodyMap := map[string]interface{}{}
 						err := json.Unmarshal([]byte(serverTimeRes.ResponseBody), &serverTimeBodyMap)
 						if err != nil {
-							log.Printf("[%s] 解析服务器时间差失败: [res:%s]%v", rc.name, serverTimeRes.ResponseBody, serverTimeRes.ResponseBody)
+							fmt.Printf("[%s] 解析服务器时间差失败: [res:%s]%v", rc.name, serverTimeRes.ResponseBody, serverTimeRes.ResponseBody)
 							continue
 						}
 						serverTimeTimestampInterface, ok := serverTimeBodyMap["serverTime"]
@@ -169,20 +169,20 @@ func main() {
 						//获取请求的开始纳秒时间戳
 						requestStartTimestampNs := serverTimeRes.RequestTimeNs
 
-						fmt.Printf("[%s] 请求开始时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
-							rc.name,
-							requestStartTimestampNs,
-							float64(requestStartTimestampNs)/1000,
-							float64(requestStartTimestampNs)/1000000)
+						// fmt.Printf("[%s] 请求开始时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
+						// 	rc.name,
+						// 	requestStartTimestampNs,
+						// 	float64(requestStartTimestampNs)/1000,
+						// 	float64(requestStartTimestampNs)/1000000)
 
 						//计算请求结束时的纳秒时间戳
 						requestEndTimestampNs := serverTimeRes.ResponseTimeNs
 
-						fmt.Printf("[%s] 请求结束时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
-							rc.name,
-							requestEndTimestampNs,
-							float64(requestEndTimestampNs)/1000,
-							float64(requestEndTimestampNs)/1000000)
+						// fmt.Printf("[%s] 请求结束时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
+						// 	rc.name,
+						// 	requestEndTimestampNs,
+						// 	float64(requestEndTimestampNs)/1000,
+						// 	float64(requestEndTimestampNs)/1000000)
 
 						//计算请求一个来回的中间点纳秒时间戳
 						requestMidTimestampNs := (requestEndTimestampNs + requestStartTimestampNs) / 2
@@ -190,14 +190,14 @@ func main() {
 						//计算服务器时间差
 						serverTimeDiffNs := serverTimeTimestampNs - requestMidTimestampNs
 
-						fmt.Printf("[%s] 服务器时间戳: %d ns ≈ %.3f us ≈ %.6f ms 本地请求中点时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
-							rc.name,
-							serverTimeTimestampNs,
-							float64(serverTimeTimestampNs)/1000,
-							float64(serverTimeTimestampNs)/1000000,
-							requestMidTimestampNs,
-							float64(requestMidTimestampNs)/1000,
-							float64(requestMidTimestampNs)/1000000)
+						// fmt.Printf("[%s] 服务器时间戳: %d ns ≈ %.3f us ≈ %.6f ms 本地请求中点时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
+						// 	rc.name,
+						// 	serverTimeTimestampNs,
+						// 	float64(serverTimeTimestampNs)/1000,
+						// 	float64(serverTimeTimestampNs)/1000000,
+						// 	requestMidTimestampNs,
+						// 	float64(requestMidTimestampNs)/1000,
+						// 	float64(requestMidTimestampNs)/1000000)
 
 						//累加服务器时间差纳秒
 						serverTimeDiffSum += serverTimeDiffNs
