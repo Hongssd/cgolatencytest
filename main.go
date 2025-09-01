@@ -268,12 +268,22 @@ func main() {
 	// WebSocket 延迟测试部分
 	// ============================
 	wsrunCases := []struct {
-		name string
-		url  string
+		name           string
+		url            string
+		serverTimeDiff int64
 	}{
-		{"BN SPOT      WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms"},
-		{"BN FUTURE    WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms"},
-		{"BN DELIVERY  WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms"},
+		{"BN SPOT      WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms", 0},
+		{"BN FUTURE    WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms", 0},
+		{"BN DELIVERY  WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
+	}
+
+	for _, rc := range wsrunCases {
+		for _, rc2 := range runCases {
+			if rc.name[:4] == rc2.name[:4] {
+				rc.serverTimeDiff = rc2.serverTimeDiff
+				fmt.Printf("[%s] 继承服务器时间差: %d ns ≈ %.3f us ≈ %.6f ms\n", rc.name, rc.serverTimeDiff, float64(rc.serverTimeDiff)/1000, float64(rc.serverTimeDiff)/1000000)
+			}
+		}
 	}
 
 	// 初始化WebSocket libcurl
@@ -403,6 +413,8 @@ func main() {
 				//毫秒转纳秒
 				msgTimestampNano := msgTimestamp * 1000000
 
+				//引入服务器时间差修正
+				msgTimestampNano += rc.serverTimeDiff
 				targetLatency := now - msgTimestampNano
 
 				//去除明显偏移的极值
