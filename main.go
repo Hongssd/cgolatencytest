@@ -169,8 +169,20 @@ func main() {
 						//获取请求的开始纳秒时间戳
 						requestStartTimestampNs := serverTimeRes.RequestTimeNs
 
+						fmt.Printf("[%s] 请求开始时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
+							rc.name,
+							requestStartTimestampNs,
+							float64(requestStartTimestampNs)/1000,
+							float64(requestStartTimestampNs)/1000000)
+
 						//计算请求结束时的纳秒时间戳
 						requestEndTimestampNs := serverTimeRes.ResponseTimeNs
+
+						fmt.Printf("[%s] 请求结束时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
+							rc.name,
+							requestEndTimestampNs,
+							float64(requestEndTimestampNs)/1000,
+							float64(requestEndTimestampNs)/1000000)
 
 						//计算请求一个来回的中间点纳秒时间戳
 						requestMidTimestampNs := (requestEndTimestampNs + requestStartTimestampNs) / 2
