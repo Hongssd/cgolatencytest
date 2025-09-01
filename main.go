@@ -162,6 +162,7 @@ func main() {
 						}
 						//获取服务器毫秒时间戳
 						serverTimeTimestamp := int64(serverTimeTimestampInterface.(float64))
+
 						//转为纳秒时间戳
 						serverTimeTimestampNs := serverTimeTimestamp * 1000000
 
@@ -175,19 +176,28 @@ func main() {
 						requestMidTimestampNs := (requestEndTimestampNs + requestStartTimestampNs) / 2
 
 						//计算服务器时间差
-						serverTimeDiff := serverTimeTimestampNs - requestMidTimestampNs
+						serverTimeDiffNs := serverTimeTimestampNs - requestMidTimestampNs
+
+						fmt.Printf("[%s] 服务器时间戳: %d ns ≈ %.3f us ≈ %.6f ms 本地请求中点时间戳: %d ns ≈ %.3f us ≈ %.6f ms\n",
+							rc.name,
+							serverTimeTimestampNs,
+							float64(serverTimeTimestampNs)/1000,
+							float64(serverTimeTimestampNs)/1000000,
+							requestMidTimestampNs,
+							float64(requestMidTimestampNs)/1000,
+							float64(requestMidTimestampNs)/1000000)
 
 						//累加服务器时间差纳秒
-						serverTimeDiffSum += serverTimeDiff
+						serverTimeDiffSum += serverTimeDiffNs
 						serverTimeSuccessCount++
 					}
 				}
 
 				//计算服务器时间差纳秒均值
-				serverTimeDiffAvg := serverTimeDiffSum / serverTimeSuccessCount
-				rc.serverTimeDiff = serverTimeDiffAvg
+				serverTimeDiffAvgNs := serverTimeDiffSum / serverTimeSuccessCount
+				rc.serverTimeDiff = serverTimeDiffAvgNs
 				fmt.Printf("[%s] 服务器时间差: %d ns ≈ %.3f us ≈ %.6f ms\n",
-					rc.name, serverTimeDiffAvg, float64(serverTimeDiffAvg)/1000, float64(serverTimeDiffAvg)/1000000)
+					rc.name, serverTimeDiffAvgNs, float64(serverTimeDiffAvgNs)/1000, float64(serverTimeDiffAvgNs)/1000000)
 			}
 
 			avgLatency := int64(0)
