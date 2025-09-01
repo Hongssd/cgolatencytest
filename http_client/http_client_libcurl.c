@@ -151,10 +151,14 @@ HttpResultLibcurl http_request_libcurl(HttpClientLibcurl* client, const char* ur
     CURLcode res = curl_easy_perform(client->curl_handle);
     
     if (res == CURLE_OK) {
+        // 记录接收到返回时刻的纳秒时间戳
+        int64_t end_time = get_time_ns();
+        result.response_time_ns = end_time;
+        
         long response_code;
         curl_easy_getinfo(client->curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
         result.status_code = (int)response_code;
-        result.latency_ns = get_time_ns() - start_time;
+        result.latency_ns = end_time - start_time;
         
         if (resp.data && resp.size > 0) {
             result.response_body = resp.data;
@@ -172,6 +176,8 @@ HttpResultLibcurl http_request_libcurl(HttpClientLibcurl* client, const char* ur
         result.connect_time_ns = (int64_t)(connect_time * 1000);
         result.tls_time_ns = (int64_t)(app_connect_time * 1000);
     } else {
+        // 即使请求失败，也记录接收到错误时刻的纳秒时间戳
+        result.response_time_ns = get_time_ns();
         result.error_message = make_error(curl_easy_strerror(res));
         free(resp.data);
     }

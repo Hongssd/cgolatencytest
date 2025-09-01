@@ -170,7 +170,7 @@ func main() {
 						requestStartTimestampNs := serverTimeRes.RequestTimeNs
 
 						//计算请求结束时的纳秒时间戳
-						requestEndTimestampNs := serverTimeRes.LatencyNs + requestStartTimestampNs
+						requestEndTimestampNs := serverTimeRes.ResponseTimeNs
 
 						//计算请求一个来回的中间点纳秒时间戳
 						requestMidTimestampNs := (requestEndTimestampNs + requestStartTimestampNs) / 2

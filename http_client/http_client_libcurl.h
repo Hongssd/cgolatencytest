@@ -25,6 +25,7 @@ typedef struct HttpClientLibcurl HttpClientLibcurl;
 typedef struct {
     int64_t latency_ns;
     int64_t request_time_ns;  // 发起请求时刻的纳秒时间戳
+    int64_t response_time_ns; // 接收到返回时刻的纳秒时间戳
     int status_code;
     char* error_message;
     int64_t dns_time_ns;

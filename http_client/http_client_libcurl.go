@@ -22,15 +22,16 @@ const (
 
 // ResultLibcurl 结构体
 type ResultLibcurl struct {
-	LatencyNs     int64
-	RequestTimeNs int64
-	StatusCode    int
-	Error         string
-	DNSTimeNs     int64
-	ConnectTimeNs int64
-	TLSTimeNs     int64
-	ResponseBody  string
-	ResponseSize  int
+	LatencyNs      int64
+	RequestTimeNs  int64
+	ResponseTimeNs int64
+	StatusCode     int
+	Error          string
+	DNSTimeNs      int64
+	ConnectTimeNs  int64
+	TLSTimeNs      int64
+	ResponseBody   string
+	ResponseSize   int
 }
 
 // ClientLibcurl HTTP客户端实例
@@ -97,15 +98,16 @@ func (c *ClientLibcurl) Request(url string, timeoutMs int, forceHttpVersion int,
 	}
 
 	return ResultLibcurl{
-		LatencyNs:     int64(res.latency_ns),
-		RequestTimeNs: int64(res.request_time_ns),
-		StatusCode:    int(res.status_code),
-		Error:         goErr,
-		DNSTimeNs:     int64(res.dns_time_ns),
-		ConnectTimeNs: int64(res.connect_time_ns),
-		TLSTimeNs:     int64(res.tls_time_ns),
-		ResponseBody:  responseBody,
-		ResponseSize:  int(res.response_size),
+		LatencyNs:      int64(res.latency_ns),
+		RequestTimeNs:  int64(res.request_time_ns),
+		ResponseTimeNs: int64(res.response_time_ns),
+		StatusCode:     int(res.status_code),
+		Error:          goErr,
+		DNSTimeNs:      int64(res.dns_time_ns),
+		ConnectTimeNs:  int64(res.connect_time_ns),
+		TLSTimeNs:      int64(res.tls_time_ns),
+		ResponseBody:   responseBody,
+		ResponseSize:   int(res.response_size),
 	}
 }
 
