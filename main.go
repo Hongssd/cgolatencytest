@@ -199,6 +199,12 @@ func main() {
 						// 	float64(requestMidTimestampNs)/1000,
 						// 	float64(requestMidTimestampNs)/1000000)
 
+						//排除偏移2倍平均值的值
+						if serverTimeSuccessCount > 0 &&
+							serverTimeDiffNs > 2*(serverTimeDiffSum/serverTimeSuccessCount) {
+							continue
+						}
+
 						//累加服务器时间差纳秒
 						serverTimeDiffSum += serverTimeDiffNs
 						serverTimeSuccessCount++
@@ -214,8 +220,8 @@ func main() {
 						break
 					}
 				}
-				fmt.Printf("[%s] 服务器时间差: %d ns ≈ %.3f us ≈ %.6f ms\n",
-					rc.name, serverTimeDiffAvgNs, float64(serverTimeDiffAvgNs)/1000, float64(serverTimeDiffAvgNs)/1000000)
+				fmt.Printf("[%s] 服务器%d次请求平均时间差: %d ns ≈ %.3f us ≈ %.6f ms\n",
+					rc.name, serverTimeSuccessCount, serverTimeDiffAvgNs, float64(serverTimeDiffAvgNs)/1000, float64(serverTimeDiffAvgNs)/1000000)
 			}
 
 			time.Sleep(5 * time.Second)
