@@ -125,6 +125,13 @@ func main() {
 		}
 	}()
 
+	clientVegeta := http_client.NewVegetaClient()
+	defer clientVegeta.Close()
+
+	res := clientVegeta.Request(runCases[0].serverTimeUrl, "GET", 3000)
+	d, _ := json.Marshal(res)
+	fmt.Println(string(d))
+
 	var wg sync.WaitGroup
 	for _, rc := range runCases {
 		wg.Add(1)
@@ -137,9 +144,6 @@ func main() {
 				panic(err)
 			}
 			defer client1.Close()
-
-			clientVegeta := http_client.NewVegetaClient()
-			defer clientVegeta.Close()
 
 			fmt.Println("开始获取服务器时间差...")
 			//若serverTimeUrl不为空字符串 请求五十次serverTime 排除异常值，取均值
