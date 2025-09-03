@@ -156,8 +156,6 @@ func main() {
 						continue
 					}
 
-					mres := clientVegeta.Request(rc.serverTimeUrl, "GET", 3000)
-					fmt.Println(mres)
 					if serverTimeRes.StatusCode == 200 {
 						serverTimeBodyMap := map[string]interface{}{}
 						err := json.Unmarshal([]byte(serverTimeRes.ResponseBody), &serverTimeBodyMap)

@@ -16,7 +16,7 @@ func NewVegetaClient() *VegetaClient {
 }
 
 func (c *VegetaClient) Request(url string, method string, timeoutMs int) vegeta.Metrics {
-	rate := vegeta.Rate{Freq: 1, Per: time.Second}
+	rate := vegeta.Rate{Freq: 100, Per: time.Second}
 	duration := time.Duration(timeoutMs) * time.Millisecond
 	targeter := vegeta.NewStaticTargeter(vegeta.Target{
 		Method: method,
