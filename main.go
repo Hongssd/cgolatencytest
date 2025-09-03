@@ -232,7 +232,7 @@ func main() {
 			}
 
 			time.Sleep(5 * time.Second)
-			avgLatency := int64(0)
+			// avgLatency := int64(0)
 			for i := 0; i < 1000; i++ {
 				res := client1.Get(rc.url, 3000, 0)
 				if res.Error != "" {
@@ -244,16 +244,17 @@ func main() {
 				}
 
 				// 去除明显偏移的极值
-				if avgLatency > 0 && res.LatencyNs > avgLatency*2 {
-					continue
-				}
+				// if avgLatency > 0 && res.LatencyNs > avgLatency*2 {
+				// 	continue
+				// }
 
 				// 更新统计数据
 				result := resultMap[rc.name]
 				atomic.AddInt64(&result.sumLatency, res.LatencyNs)
 				atomic.AddInt64(&result.successCount, 1)
-				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
+				// avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
 			}
+			time.Sleep(5 * time.Second)
 
 			res := clientVegeta.Request(rc.url, "GET", 3000)
 			// d, _ := json.Marshal(res)
@@ -392,7 +393,7 @@ func main() {
 			}
 			// 连接成功后不再单独打印，由状态显示器统一显示
 
-			avgLatency := int64(0)
+			// avgLatency := int64(0)
 			//接收1000次消息
 			for {
 				// 检查是否已完成1000次
@@ -438,18 +439,18 @@ func main() {
 				msgTimestampNano := msgTimestamp * 1000000
 
 				//引入服务器时间差修正
-				// msgTimestampNano += rc.serverTimeDiff
+				msgTimestampNano += rc.serverTimeDiff
 				targetLatency := now - msgTimestampNano
 
 				//去除明显偏移的极值
-				if avgLatency > 0 && targetLatency > avgLatency*2 {
-					continue
-				}
+				// if avgLatency > 0 && targetLatency > avgLatency*2 {
+				// 	continue
+				// }
 
 				// 更新统计数据
 				atomic.AddInt64(&result.sumLatency, targetLatency)
 				atomic.AddInt64(&result.successCount, 1)
-				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
+				// avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
 			}
 		}()
 	}
