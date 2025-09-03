@@ -231,34 +231,34 @@ func main() {
 					rc.name, serverTimeSuccessCount, serverTimeDiffAvgNs, float64(serverTimeDiffAvgNs)/1000, float64(serverTimeDiffAvgNs)/1000000)
 			}
 
-			// time.Sleep(5 * time.Second)
+			time.Sleep(5 * time.Second)
 			avgLatency := int64(0)
-			// for i := 0; i < 1000; i++ {
-			// 	res := client1.Get(rc.url, 3000, 0)
-			// 	if res.Error != "" {
-			// 		continue
-			// 	}
+			for i := 0; i < 1000; i++ {
+				res := client1.Get(rc.url, 3000, 0)
+				if res.Error != "" {
+					continue
+				}
 
-			// 	if res.StatusCode < 100 || res.StatusCode > 599 {
-			// 		continue
-			// 	}
+				if res.StatusCode < 100 || res.StatusCode > 599 {
+					continue
+				}
 
-			// 	// 去除明显偏移的极值
-			// 	if avgLatency > 0 && res.LatencyNs > avgLatency*2 {
-			// 		continue
-			// 	}
+				// 去除明显偏移的极值
+				if avgLatency > 0 && res.LatencyNs > avgLatency*2 {
+					continue
+				}
 
-			// 	// 更新统计数据
-			// 	result := resultMap[rc.name]
-			// 	atomic.AddInt64(&result.sumLatency, res.LatencyNs)
-			// 	atomic.AddInt64(&result.successCount, 1)
-			// 	avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
-			// }
+				// 更新统计数据
+				result := resultMap[rc.name]
+				atomic.AddInt64(&result.sumLatency, res.LatencyNs)
+				atomic.AddInt64(&result.successCount, 1)
+				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
+			}
 
 			res := clientVegeta.Request(rc.url, "GET", 3000)
 			// d, _ := json.Marshal(res)
 			// fmt.Println(res.Latencies.Mean)
-			avgLatency = int64(res.Latencies.Mean)
+			fmt.Printf("[%s]vegate测试均值:%d ns ≈ %.3f us ≈ %.6f ms\n", rc.name, res.Latencies.Mean.Nanoseconds(), float64(res.Latencies.Mean.Nanoseconds())/1000, float64(res.Latencies.Mean.Nanoseconds())/1000000)
 
 		}()
 	}
