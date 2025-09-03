@@ -138,17 +138,26 @@ func main() {
 			}
 			defer client1.Close()
 
+			clientVegeta := http_client.NewVegetaClient()
+			defer clientVegeta.Close()
+
 			fmt.Println("开始获取服务器时间差...")
 			//若serverTimeUrl不为空字符串 请求五十次serverTime 排除异常值，取均值
 			if rc.serverTimeUrl != "" {
 				serverTimeDiffSum := int64(0)
 				serverTimeSuccessCount := int64(0)
+
+				// serverTimeVegetaDiffSum := int64(0)
+				// serverTimeVegetaSuccessCount := int64(0)
 				for i := 0; i < 50; i++ {
 					serverTimeRes := client1.Get(rc.serverTimeUrl, 3000, 0)
 					if serverTimeRes.Error != "" {
 						fmt.Printf("[%s] 获取服务器时间差失败: %s", rc.name, serverTimeRes.Error)
 						continue
 					}
+
+					mres := clientVegeta.Request(rc.serverTimeUrl, "GET", 3000)
+					fmt.Println(mres)
 					if serverTimeRes.StatusCode == 200 {
 						serverTimeBodyMap := map[string]interface{}{}
 						err := json.Unmarshal([]byte(serverTimeRes.ResponseBody), &serverTimeBodyMap)
