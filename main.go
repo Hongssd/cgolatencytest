@@ -206,11 +206,11 @@ func main() {
 						// 	float64(requestMidTimestampNs)/1000,
 						// 	float64(requestMidTimestampNs)/1000000)
 
-						//排除偏移2倍平均值的值
-						if serverTimeSuccessCount > 0 &&
-							serverTimeDiffNs > 2*(serverTimeDiffSum/serverTimeSuccessCount) {
-							continue
-						}
+						// //排除偏移2倍平均值的值
+						// if serverTimeSuccessCount > 0 &&
+						// 	serverTimeDiffNs > 2*(serverTimeDiffSum/serverTimeSuccessCount) {
+						// 	continue
+						// }
 
 						//累加服务器时间差纳秒
 						serverTimeDiffSum += serverTimeDiffNs
@@ -302,10 +302,10 @@ func main() {
 		{"BN DELIVERY  WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
 	}
 
-	for _, rc := range wsrunCases {
+	for rci, rc := range wsrunCases {
 		for _, rc2 := range runCases {
 			if rc.name[:4] == rc2.name[:4] {
-				rc.serverTimeDiff = rc2.serverTimeDiff
+				wsrunCases[rci].serverTimeDiff = rc2.serverTimeDiff
 				fmt.Printf("[%s] 继承服务器时间差: %d ns ≈ %.3f us ≈ %.6f ms\n", rc.name, rc.serverTimeDiff, float64(rc.serverTimeDiff)/1000, float64(rc.serverTimeDiff)/1000000)
 			}
 		}
