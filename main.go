@@ -259,14 +259,13 @@ func main() {
 			// d, _ := json.Marshal(res)
 			// fmt.Println(res.Latencies.Mean)
 			fmt.Printf("[%s]vegate测试均值:%d ns ≈ %.3f us ≈ %.6f ms\n", rc.name, res.Latencies.Mean.Nanoseconds(), float64(res.Latencies.Mean.Nanoseconds())/1000, float64(res.Latencies.Mean.Nanoseconds())/1000000)
-
 		}()
 	}
 	wg.Wait()
 	statusCancel() // 停止实时状态显示
 
-	fmt.Printf("\r%s\n", strings.Repeat(" ", 100)) // 清除状态行
-	fmt.Println("\n" + strings.Repeat("=", 60))
+	// fmt.Printf("\r%s\n", strings.Repeat(" ", 100)) // 清除状态行
+	// fmt.Println("\n" + strings.Repeat("=", 60))
 	fmt.Println("测试完成! 最终结果:")
 	fmt.Println(strings.Repeat("=", 60))
 
