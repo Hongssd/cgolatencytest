@@ -66,6 +66,7 @@ WORKDIR /app
 
 # 复制本地构建好的二进制文件
 COPY main /app/main
+COPY config.yml /app/config.yml
 
 # 设置文件权限
 RUN chmod +x /app/main \
@@ -82,4 +83,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ps aux | grep main || exit 1
 
 # 设置入口点
-ENTRYPOINT ["./main"]
+ENTRYPOINT ["./main","-config","config.yml"]
