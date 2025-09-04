@@ -148,7 +148,10 @@ func init() {
 
 func newP2PLatencyNode(node *p2p_base.P2PBaseNode) *P2PLatencyNode {
 	return &P2PLatencyNode{
-		Node: node,
+		Node:              node,
+		BnLatency:         &BnLatencyResult{},
+		NodeAvgLatencyMap: myutils.GetPointer(myutils.NewMySyncMap[string, int64]()),
+		NodeBnLatencyMap:  myutils.GetPointer(myutils.NewMySyncMap[string, BnLatencyResult]()),
 	}
 }
 
