@@ -89,24 +89,6 @@ services:
     cap_add:
       - NET_ADMIN
 
-  http-latency-test-node6:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
-    container_name: gocpptest-http-latency-test
-    volumes: 
-      - .:/app
-    working_dir: /app
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
-    restart: unless-stopped
-    networks:
-      lan:
-        ipv4_address: ${LOCALIP6}
-    cap_add:
-      - NET_ADMIN
-      
 networks:
   lan:
     driver: ipvlan
