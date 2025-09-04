@@ -67,7 +67,7 @@ WORKDIR /app
 # 复制本地构建好的二进制文件
 COPY main /app/main
 COPY config.yml /app/config.yml
-COPY config/default.yml /app/config/default.yml
+COPY config/default.yml /app/default.yml
 
 # 设置文件权限
 RUN chmod +x /app/main \
