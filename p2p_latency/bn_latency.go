@@ -120,7 +120,10 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 				}
 
 				//计算服务器时间差纳秒均值
-				serverTimeDiffAvgNs := serverTimeDiffSum / serverTimeSuccessCount
+				serverTimeDiffAvgNs := int64(0)
+				if serverTimeSuccessCount > 0 {
+					serverTimeDiffAvgNs = serverTimeDiffSum / serverTimeSuccessCount
+				}
 				//rc是局部变量，需要修改原值
 				for i, rc2 := range runCases {
 					if rc2.name == rc.name {
