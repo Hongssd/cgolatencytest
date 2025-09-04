@@ -77,7 +77,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 				serverTimeDiffSum := int64(0)
 				serverTimeSuccessCount := int64(0)
 
-				for i := 0; i < 100; i++ {
+				for i := 0; i < 10; i++ {
 					serverTimeRes := client1.Get(rc.serverTimeUrl, 3000, 0)
 					if serverTimeRes.Error != "" {
 						log.Errorf("[%s] 获取服务器时间差失败: %s", rc.name, serverTimeRes.Error)
@@ -137,7 +137,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 
 			time.Sleep(5 * time.Second)
 			avgLatency := int64(0)
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 100; i++ {
 				res := client1.Get(rc.url, 3000, 0)
 				if res.Error != "" {
 					continue
@@ -224,7 +224,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 			for {
 				// 检查是否已完成1000次
 				result := wsResultMap[rc.name]
-				if atomic.LoadInt64(&result.successCount) >= 1000 {
+				if atomic.LoadInt64(&result.successCount) >= 500 {
 					break
 				}
 

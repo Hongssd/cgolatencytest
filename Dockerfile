@@ -58,6 +58,7 @@ RUN apt-get remove -y \
 # 验证 libcurl 安装
 RUN /usr/local/bin/curl-config --version || echo "curl-config not found, but libcurl should be available"
 
+
 # 创建非 root 用户
 RUN useradd -r -u 1001 -g root appuser
 
