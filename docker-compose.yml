@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     networks:
       lan:
-        ipv4_address: 10.101.1.11
+        ipv4_address: ${LOCALIP1}
     cap_add:
       - NET_ADMIN
   http-latency-test-node2:
@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     networks:
       lan:
-        ipv4_address: 10.101.1.12
+        ipv4_address: ${LOCALIP2}
     cap_add:
       - NET_ADMIN
   http-latency-test-node3:
@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
     networks:
       lan:
-        ipv4_address: 10.101.1.13
+        ipv4_address: ${LOCALIP3}
     cap_add:
       - NET_ADMIN
 
@@ -67,7 +67,7 @@ services:
     restart: unless-stopped
     networks:
       lan:
-        ipv4_address: 10.101.1.14
+        ipv4_address: ${LOCALIP4}
     cap_add:
       - NET_ADMIN
 
@@ -85,7 +85,7 @@ services:
     restart: unless-stopped
     networks:
       lan:
-        ipv4_address: 10.101.1.15
+        ipv4_address: ${LOCALIP5}
     cap_add:
       - NET_ADMIN
 
@@ -103,7 +103,7 @@ services:
     restart: unless-stopped
     networks:
       lan:
-        ipv4_address: 10.101.1.16
+        ipv4_address: ${LOCALIP6}
     cap_add:
       - NET_ADMIN
       
@@ -115,6 +115,6 @@ networks:
       ipvlan_mode: l2
     ipam:
       config:
-        - subnet: 10.101.1.0/24
-          gateway: 10.101.1.1
+        - subnet: ${LAN_SUBNET}
+          gateway: ${LAN_GATEWAY}
 
