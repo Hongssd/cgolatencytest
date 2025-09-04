@@ -61,10 +61,21 @@ func (n *P2PLatencyNode) handleAvgLatencyMsg(p2pMsg P2PMessage, fromPeerName str
 	return nil
 }
 
+// 获取目标节点平均延迟
 func (p2pService *P2PLatencyNode) GetAvgLatencyFromNodeName(nodeName string) int64 {
 	avgLatency, ok := p2pService.NodeAvgLatencyMap.Load(nodeName)
 	if !ok {
 		return 0
 	}
 	return avgLatency
+}
+
+// 获取所有节点平均延迟
+func (p2pService *P2PLatencyNode) GetAllAvgLatency() map[string]int64 {
+	avgLatencyMap := make(map[string]int64)
+	p2pService.NodeAvgLatencyMap.Range(func(key string, value int64) bool {
+		avgLatencyMap[key] = value
+		return true
+	})
+	return avgLatencyMap
 }

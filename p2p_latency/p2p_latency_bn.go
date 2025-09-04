@@ -55,7 +55,7 @@ func (n *P2PLatencyNode) broadcastBnLatencyMsg() error {
 	return nil
 }
 
-
+//处理币安延迟请求
 func (n *P2PLatencyNode) handleBnLatencyMsgReq(p2pMsg P2PMessage, fromPeerName string, inTimestamp int64) error {
 
 	bnLatencyData, err := json.Marshal(n.BnLatency)
@@ -116,7 +116,7 @@ func (n *P2PLatencyNode) GetBnLatencyFromNodeName(nodeName string) BnLatencyResu
 	return bnLatency
 }
 
-// 获取所有延迟信息
+// 获取所有币安延迟信息
 func (n *P2PLatencyNode) GetBnLatencyAll() map[string]BnLatencyResult {
 	bnLatencyMap := make(map[string]BnLatencyResult)
 	n.NodeBnLatencyMap.Range(func(key string, value BnLatencyResult) bool {

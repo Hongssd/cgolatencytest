@@ -20,6 +20,11 @@ func main() {
 			log.Infof("节点[%s]币安延迟信息: %+v", k, v)
 		}
 
+		nodeLatencyAll := p2pNode.GetAllAvgLatency()
+		for k, v := range nodeLatencyAll {
+			log.Infof("节点[%s]平均延迟信息: %+v", k, v)
+		}
+
 	}
 
 }
