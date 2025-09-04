@@ -138,6 +138,9 @@ func startHTTPServer() {
 	http.HandleFunc("/api/node-latency", handleNodeLatency)
 
 	// 启动服务器
+	if http_port == 0 {
+		http_port = 8080
+	}
 	serverAddr := fmt.Sprintf(":%d", http_port)
 	log.Infof("HTTP服务器启动，监听端口: %d", http_port)
 	log.Infof("API端点:")
