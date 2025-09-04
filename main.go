@@ -148,4 +148,5 @@ func startHTTPServer() {
 	if err != nil {
 		log.Errorf("HTTP服务器启动失败: %v", err)
 	}
+	log.Infof("HTTP服务器启动成功，监听端口: %d", http_port)
 }
