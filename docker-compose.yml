@@ -1,44 +1,120 @@
 
 services:
   # HTTP延迟测试主服务
-  http-latency-test:
+  http-latency-test-node1:
     build:
       context: .
       dockerfile: Dockerfile
       target: runtime
     container_name: gocpptest-http-latency-test
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
-    volumes: []
-      # 可选：挂载配置文件
-      # - ./config:/app/config:ro
-      # 可选：挂载日志目录
-      # - ./logs:/app/logs
-    restart: unless-stopped
-    # 如果需要网络访问，取消注释下面的端口映射
-    # ports:
-    #   - "8080:8080"
-    networks:
-      - gocpptest-network
-
-  # 开发调试环境服务
-  http-latency-test-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: gocpptest-http-latency-test-dev
-    volumes:
+    volumes: 
       - .:/app
     working_dir: /app
     environment:
       - LD_LIBRARY_PATH=/app/http_test
-    command: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
     networks:
-      - gocpptest-network
+      lan:
+        ipv4_address: 10.101.1.11
+    cap_add:
+      - NET_ADMIN
+  http-latency-test-node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gocpptest-http-latency-test
+    volumes: 
+      - .:/app
+    working_dir: /app
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    restart: unless-stopped
+    networks:
+      lan:
+        ipv4_address: 10.101.1.12
+    cap_add:
+      - NET_ADMIN
+  http-latency-test-node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gocpptest-http-latency-test
+    volumes: 
+      - .:/app
+    working_dir: /app
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    restart: unless-stopped
+    networks:
+      lan:
+        ipv4_address: 10.101.1.13
+    cap_add:
+      - NET_ADMIN
 
+  http-latency-test-node4:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gocpptest-http-latency-test
+    volumes: 
+      - .:/app
+    working_dir: /app
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    restart: unless-stopped
+    networks:
+      lan:
+        ipv4_address: 10.101.1.14
+    cap_add:
+      - NET_ADMIN
+
+  http-latency-test-node5:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gocpptest-http-latency-test
+    volumes: 
+      - .:/app
+    working_dir: /app
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    restart: unless-stopped
+    networks:
+      lan:
+        ipv4_address: 10.101.1.15
+    cap_add:
+      - NET_ADMIN
+
+  http-latency-test-node6:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: gocpptest-http-latency-test
+    volumes: 
+      - .:/app
+    working_dir: /app
+    environment:
+      - LD_LIBRARY_PATH=/app/http_test
+    restart: unless-stopped
+    networks:
+      lan:
+        ipv4_address: 10.101.1.16
+    cap_add:
+      - NET_ADMIN
+      
 networks:
-  gocpptest-network:
-    driver: bridge
+  lan:
+    driver: ipvlan
+    driver_opts:
+      parent: enX0
+      ipvlan_mode: l2
+    ipam:
+      config:
+        - subnet: 10.101.1.0/24
+          gateway: 10.101.1.1
 
-volumes:
-  go-cache:

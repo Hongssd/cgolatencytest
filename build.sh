@@ -200,9 +200,9 @@ docker_test() {
     print_success "Docker测试完成！"
 }
 
-# 一键Docker Compose测试
-docker_compose_test() {
-    print_info "开始一键Docker Compose测试..."
+# 一键Docker Compose启动
+docker_compose_start() {
+    print_info "开始一键Docker Compose启动..."
     
     # 检查Docker Compose
     check_docker_compose
@@ -247,23 +247,11 @@ docker_compose_test() {
     print_info "查看服务日志..."
     docker compose logs --tail=20
     
-    # 测试服务运行
-    print_info "测试服务运行..."
-    if docker compose exec -T http-latency-test echo "服务运行正常"; then
-        print_success "服务运行测试通过"
-    else
-        print_warning "服务运行测试失败，但继续执行"
-    fi
-    
-    # 停止服务
-    print_info "停止Docker Compose服务..."
-    if docker compose down; then
-        print_success "Docker Compose服务停止成功"
-    else
-        print_warning "Docker Compose服务停止失败，但继续执行"
-    fi
-    
-    print_success "Docker Compose测试完成！"
+    print_success "Docker Compose服务启动完成！"
+    print_info "服务正在后台运行，可以使用以下命令管理："
+    print_info "  查看日志: docker compose logs -f"
+    print_info "  停止服务: docker compose down"
+    print_info "  查看状态: docker compose ps"
 }
 
 # 执行完整流程
@@ -296,7 +284,7 @@ run_all() {
     check_docker
     build_docker
     test_docker
-    docker_compose_test
+    docker_compose_start
     echo
     
     print_success "完整流程执行完成！"
@@ -326,7 +314,7 @@ show_help() {
     echo "  $0 test        # 运行测试"
     echo "  $0 docker      # 构建Docker镜像"
     echo "  $0 docker-test # 一键Docker测试（构建+测试）"
-    echo "  $0 docker-compose-test # 🚀 一键Docker Compose测试（构建+启动+测试+清理）"
+    echo "  $0 docker-compose-start # 🚀 一键Docker Compose启动（构建+启动主服务）"
     echo "  $0 clean       # 清理构建产物"
     echo "  $0 rebuild     # 重新构建"
     echo "  $0 all         # 🚀 执行完整流程（清理+测试+构建+Docker）"
@@ -334,7 +322,7 @@ show_help() {
     echo ""
     echo "推荐使用："
     echo "  $0 all         # 一键完成所有流程"
-    echo "  $0 docker-compose-test # 🚀 Docker Compose完整测试"
+    echo "  $0 docker-compose-start # 🚀 Docker Compose启动主服务"
     echo "  $0 docker-test # 仅Docker测试"
 }
 
@@ -361,8 +349,8 @@ main() {
         "docker-test")
             docker_test
             ;;
-        "docker-compose-test")
-            docker_compose_test
+        "docker-compose-start")
+            docker_compose_start
             ;;
         "clean")
             clean
