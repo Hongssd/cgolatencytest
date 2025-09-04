@@ -49,6 +49,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 	type TestResult struct {
 		successCount int64
 		sumLatency   int64
+		avgLatency   int64
 	}
 
 	resultMap := make(map[string]*TestResult)
@@ -153,6 +154,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 				atomic.AddInt64(&result.sumLatency, res.LatencyNs)
 				atomic.AddInt64(&result.successCount, 1)
 				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
+				atomic.StoreInt64(&result.avgLatency, avgLatency)
 			}
 
 		}()
@@ -272,6 +274,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 				atomic.AddInt64(&result.sumLatency, targetLatency)
 				atomic.AddInt64(&result.successCount, 1)
 				avgLatency = atomic.LoadInt64(&result.sumLatency) / atomic.LoadInt64(&result.successCount)
+				atomic.StoreInt64(&result.avgLatency, avgLatency)
 			}
 		}()
 	}
@@ -279,15 +282,17 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 	wg.Wait()
 
 	log.Debug("Binance HTTP和WebSocket延迟测试完成...")
+	log.Debug(resultMap)
+	log.Debug(wsResultMap)
 
 	result := &BnLatencyResult{
-		HttpBinanceSpotLatencyNs:      resultMap[wsrunCases[0].name].sumLatency / resultMap[wsrunCases[1].name].successCount,
-		HttpBinanceFutureLatencyNs:    resultMap[wsrunCases[1].name].sumLatency / resultMap[wsrunCases[1].name].successCount,
-		HttpBinanceDeliveryLatencyNs:  resultMap[wsrunCases[2].name].sumLatency / resultMap[wsrunCases[2].name].successCount,
-		HttpBinancePortfolioLatencyNs: resultMap[wsrunCases[3].name].sumLatency / resultMap[wsrunCases[3].name].successCount,
-		WsBinanceSpotLatencyNs:        wsResultMap[wsrunCases[0].name].sumLatency / wsResultMap[wsrunCases[0].name].successCount,
-		WsBinanceFutureLatencyNs:      wsResultMap[wsrunCases[1].name].sumLatency / wsResultMap[wsrunCases[1].name].successCount,
-		WsBinanceDeliveryLatencyNs:    wsResultMap[wsrunCases[2].name].sumLatency / wsResultMap[wsrunCases[2].name].successCount,
+		HttpBinanceSpotLatencyNs:      resultMap[runCases[0].name].avgLatency,
+		HttpBinanceFutureLatencyNs:    resultMap[runCases[1].name].avgLatency,
+		HttpBinanceDeliveryLatencyNs:  resultMap[runCases[2].name].avgLatency,
+		HttpBinancePortfolioLatencyNs: resultMap[runCases[3].name].avgLatency,
+		WsBinanceSpotLatencyNs:        wsResultMap[wsrunCases[0].name].avgLatency,
+		WsBinanceFutureLatencyNs:      wsResultMap[wsrunCases[1].name].avgLatency,
+		WsBinanceDeliveryLatencyNs:    wsResultMap[wsrunCases[2].name].avgLatency,
 	}
 
 	log.Debug("==========测试结果========")
