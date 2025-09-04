@@ -2,6 +2,7 @@ package http_client
 
 /*
 #cgo LDFLAGS: -lcurl -lssl -lcrypto
+#cgo CFLAGS: -O3 -march=native -mtune=native -Wall -Wextra
 #include "websocket_client_libcurl.h"
 #include <stdlib.h>
 */
