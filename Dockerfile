@@ -1,5 +1,5 @@
 # 运行时环境 - 包含最新版本 libcurl
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS runtime
 
 # 设置环境变量
 ENV TZ=Asia/Shanghai
