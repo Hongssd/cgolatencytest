@@ -1,7 +1,8 @@
 package http_client
 
 /*
-#cgo LDFLAGS: -lcurl -lssl -lcrypto
+#cgo CFLAGS: -I${SRCDIR}/lib/include
+#cgo LDFLAGS: ${SRCDIR}/lib/libcurl.a -lssl -lcrypto -lz -lpthread
 #cgo CFLAGS: -O3 -march=native -mtune=native -Wall -Wextra
 #include "websocket_client_libcurl.h"
 #include <stdlib.h>
