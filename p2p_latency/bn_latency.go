@@ -265,7 +265,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 				msgTimestampNano := msgTimestamp * 1000000
 
 				//引入服务器时间差修正
-				msgTimestampNano += rc.serverTimeDiff
+				msgTimestampNano -= rc.serverTimeDiff
 				targetLatency := now - msgTimestampNano
 
 				//去除明显偏移的极值
