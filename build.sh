@@ -87,6 +87,8 @@ check_deps() {
     
     # 检查库文件
     print_info "检查开发库..."
+
+    sudo apt install libssl-dev libnghttp2-dev libpsl-dev libidn2-dev zlib1g-dev
     
     # 检查 libssl-dev (OpenSSL)
     if ! check_library_pkgconfig "libssl-dev" "openssl" && \
