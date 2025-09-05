@@ -16,25 +16,140 @@ print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# 耗时统计函数
+start_timer() {
+    start_time=$(date +%s.%N)
+}
 
+end_timer() {
+    local operation_name="$1"
+    end_time=$(date +%s.%N)
+    duration=$(echo "$end_time - $start_time" | bc -l)
+    print_success "$operation_name 完成，耗时: ${duration}s"
+}
+
+
+
+# 检查库文件是否存在
+check_library() {
+    local lib_name=$1
+    local lib_file=$2
+    
+    if [ -f "$lib_file" ]; then
+        print_success "✓ $lib_name 已安装"
+        return 0
+    else
+        print_error "✗ $lib_name 未安装 (查找路径: $lib_file)"
+        return 1
+    fi
+}
+
+# 使用pkg-config检查库
+check_library_pkgconfig() {
+    local lib_name=$1
+    local pkg_name=$2
+    
+    if pkg-config --exists "$pkg_name" 2>/dev/null; then
+        print_success "✓ $lib_name 已安装 (pkg-config)"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# 使用ldconfig检查库
+check_library_ldconfig() {
+    local lib_name=$1
+    local lib_pattern=$2
+    
+    if ldconfig -p 2>/dev/null | grep -q "$lib_pattern"; then
+        print_success "✓ $lib_name 已安装 (ldconfig)"
+        return 0
+    else
+        return 1
+    fi
+}
 
 # 检查依赖
 check_deps() {
     print_info "检查依赖..."
     local missing_deps=()
+    local missing_libs=()
     
+    # 检查基本命令
     for cmd in go gcc; do
         if ! command -v $cmd &> /dev/null; then
             missing_deps+=($cmd)
+        else
+            print_success "✓ $cmd 已安装"
         fi
     done
     
+    # 检查库文件
+    print_info "检查开发库..."
+    
+    # 检查 libssl-dev (OpenSSL)
+    if ! check_library_pkgconfig "libssl-dev" "openssl" && \
+       ! check_library_ldconfig "libssl-dev" "libssl" && \
+       ! check_library "libssl-dev" "/usr/lib/x86_64-linux-gnu/libssl.so" && \
+       ! check_library "libssl-dev" "/usr/lib/libssl.so" && \
+       ! check_library "libssl-dev" "/usr/lib64/libssl.so"; then
+        missing_libs+=("libssl-dev")
+    fi
+    
+    # 检查 libnghttp2-dev
+    if ! check_library_pkgconfig "libnghttp2-dev" "libnghttp2" && \
+       ! check_library_ldconfig "libnghttp2-dev" "libnghttp2" && \
+       ! check_library "libnghttp2-dev" "/usr/lib/x86_64-linux-gnu/libnghttp2.so" && \
+       ! check_library "libnghttp2-dev" "/usr/lib/libnghttp2.so" && \
+       ! check_library "libnghttp2-dev" "/usr/lib64/libnghttp2.so"; then
+        missing_libs+=("libnghttp2-dev")
+    fi
+    
+    # 检查 libpsl-dev
+    if ! check_library_pkgconfig "libpsl-dev" "libpsl" && \
+       ! check_library_ldconfig "libpsl-dev" "libpsl" && \
+       ! check_library "libpsl-dev" "/usr/lib/x86_64-linux-gnu/libpsl.so" && \
+       ! check_library "libpsl-dev" "/usr/lib/libpsl.so" && \
+       ! check_library "libpsl-dev" "/usr/lib64/libpsl.so"; then
+        missing_libs+=("libpsl-dev")
+    fi
+    
+    # 检查 libidn2-dev
+    if ! check_library_pkgconfig "libidn2-dev" "libidn2" && \
+       ! check_library_ldconfig "libidn2-dev" "libidn2" && \
+       ! check_library "libidn2-dev" "/usr/lib/x86_64-linux-gnu/libidn2.so" && \
+       ! check_library "libidn2-dev" "/usr/lib/libidn2.so" && \
+       ! check_library "libidn2-dev" "/usr/lib64/libidn2.so"; then
+        missing_libs+=("libidn2-dev")
+    fi
+    
+    # 检查 zlib1g-dev
+    if ! check_library_pkgconfig "zlib1g-dev" "zlib" && \
+       ! check_library_ldconfig "zlib1g-dev" "libz" && \
+       ! check_library "zlib1g-dev" "/usr/lib/x86_64-linux-gnu/libz.so" && \
+       ! check_library "zlib1g-dev" "/usr/lib/libz.so" && \
+       ! check_library "zlib1g-dev" "/usr/lib64/libz.so"; then
+        missing_libs+=("zlib1g-dev")
+    fi
+    
+    # 如果有缺失的依赖，显示错误信息
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        print_error "缺少依赖: ${missing_deps[*]}"
+        print_error "缺少命令依赖: ${missing_deps[*]}"
+        print_info "请安装缺少的命令，例如: sudo apt install ${missing_deps[*]}"
+    fi
+    
+    if [ ${#missing_libs[@]} -gt 0 ]; then
+        print_error "缺少库依赖: ${missing_libs[*]}"
+        print_info "请安装缺少的库，例如: sudo apt install ${missing_libs[*]}"
+    fi
+    
+    # 如果有任何缺失的依赖，退出
+    if [ ${#missing_deps[@]} -gt 0 ] || [ ${#missing_libs[@]} -gt 0 ]; then
         exit 1
     fi
     
-    print_success "依赖检查通过"
+    print_success "所有依赖检查通过"
 }
 
 # 检查Docker
@@ -79,6 +194,7 @@ check_docker_compose() {
 # 构建Go应用
 build_go() {
     print_info "构建Go应用..."
+    start_timer
     
     if [ ! -f "go.mod" ]; then
         print_error "未找到go.mod文件"
@@ -90,6 +206,7 @@ build_go() {
     
     # 检查二进制文件是否生成
     if [ -f "main" ]; then
+        end_timer "Go应用构建"
         print_success "Go应用构建成功，二进制文件: main"
         ls -lh main
     else
