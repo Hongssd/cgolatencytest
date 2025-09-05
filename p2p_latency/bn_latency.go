@@ -147,10 +147,10 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 					continue
 				}
 
-				// 去除明显偏移的极值
-				if avgLatency > 0 && res.LatencyNs > avgLatency*2 {
-					continue
-				}
+				// // 去除明显偏移的极值
+				// if avgLatency > 0 && res.LatencyNs > avgLatency*2 {
+				// 	continue
+				// }
 
 				// 更新统计数据
 				result := resultMap[rc.name]
@@ -268,10 +268,10 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 				msgTimestampNano += rc.serverTimeDiff
 				targetLatency := now - msgTimestampNano
 
-				//去除明显偏移的极值
-				if avgLatency > 0 && targetLatency > avgLatency*2 {
-					continue
-				}
+				// //去除明显偏移的极值
+				// if avgLatency > 0 && targetLatency > avgLatency*2 {
+				// 	continue
+				// }
 
 				// 更新统计数据
 				atomic.AddInt64(&result.sumLatency, targetLatency)
