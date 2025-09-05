@@ -4,119 +4,51 @@ import (
 	"cgolatencytest/config"
 	"cgolatencytest/mylog"
 	"cgolatencytest/p2p_latency"
-	"encoding/json"
-	"fmt"
-	"net/http"
+	"net"
+	"strconv"
 	"time"
 )
 
 var log = mylog.Log
 
-var http_port = config.GetConfigInt("http_port")
-
-// API响应结构
-type ApiResponse struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-}
-
-// 币安延迟响应结构
-type BnLatencyResponse struct {
-	NodeName string                      `json:"node_name"`
-	Latency  p2p_latency.BnLatencyResult `json:"latency"`
-}
-
-// 节点延迟响应结构
-type NodeLatencyResponse struct {
-	NodeName string `json:"node_name"`
-	Latency  int64  `json:"latency_us"`
-}
-
-// 币安延迟API处理器
-func handleBnLatency(w http.ResponseWriter, r *http.Request) {
-	log.Infof("收到币安延迟查询请求")
-
-	p2pNode := p2p_latency.GetP2PLatencyNode()
-	if p2pNode == nil {
-		response := ApiResponse{
-			Code:    500,
-			Message: "P2P节点未初始化",
-			Data:    nil,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	bnLatencyAll := p2pNode.GetBnLatencyAll()
-	var responses []BnLatencyResponse
-
-	for nodeName, latency := range bnLatencyAll {
-		responses = append(responses, BnLatencyResponse{
-			NodeName: nodeName,
-			Latency:  latency,
-		})
-		log.Infof("节点[%s]币安延迟信息: %+v", nodeName, latency)
-	}
-
-	response := ApiResponse{
-		Code:    200,
-		Message: "查询成功",
-		Data:    responses,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-// 节点延迟API处理器
-func handleNodeLatency(w http.ResponseWriter, r *http.Request) {
-	log.Infof("收到节点延迟查询请求")
-
-	p2pNode := p2p_latency.GetP2PLatencyNode()
-	if p2pNode == nil {
-		response := ApiResponse{
-			Code:    500,
-			Message: "P2P节点未初始化",
-			Data:    nil,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	nodeLatencyAll := p2pNode.GetAllAvgLatency()
-	var responses []NodeLatencyResponse
-
-	for nodeName, latency := range nodeLatencyAll {
-		responses = append(responses, NodeLatencyResponse{
-			NodeName: nodeName,
-			Latency:  latency,
-		})
-		log.Infof("节点[%s]平均延迟信息: %+v", nodeName, latency)
-	}
-
-	response := ApiResponse{
-		Code:    200,
-		Message: "查询成功",
-		Data:    responses,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
 func main() {
 	// 启动HTTP服务器
-	go startHTTPServer()
+
+	myIP, err := p2p_latency.GetMyIP()
+	if err != nil {
+		log.Errorf("获取本机IP失败: %v", err)
+		return
+	}
+	allNodeList := config.GetConfigSlice("p2p_nodes")
+
+	p2pPort := 0
+	otherNodeList := make([]string, 0)
+	for _, node := range allNodeList {
+		host, port, err := net.SplitHostPort(node)
+		if err != nil {
+			log.Errorf("获取节点地址失败: %v", err)
+			return
+		}
+		if host == myIP {
+			p2pPort, _ = strconv.Atoi(port)
+		} else {
+			otherNodeList = append(otherNodeList, node)
+		}
+	}
+
+	p2pNode, err := p2p_latency.NewP2PLatencyNode(myIP, p2pPort, otherNodeList)
+	if err != nil {
+		log.Errorf("创建P2P节点失败: %v", err)
+		return
+	}
+
+	http_port := config.GetConfigInt("http_port")
+
+	go p2pNode.StartHTTPServer(http_port)
 
 	// 原有的延迟监控逻辑
 	for {
 		time.Sleep(time.Second * 30)
-		p2pNode := p2p_latency.GetP2PLatencyNode()
 
 		bnLatencyAll := p2pNode.GetBnLatencyAll()
 
@@ -129,27 +61,4 @@ func main() {
 			log.Infof("节点[%s]平均延迟信息: %+v", k, v)
 		}
 	}
-}
-
-// 启动HTTP服务器
-func startHTTPServer() {
-	// 注册API路由
-	http.HandleFunc("/api/bn-latency", handleBnLatency)
-	http.HandleFunc("/api/node-latency", handleNodeLatency)
-
-	// 启动服务器
-	if http_port == 0 {
-		http_port = 8080
-	}
-	serverAddr := fmt.Sprintf(":%d", http_port)
-	log.Infof("HTTP服务器启动，监听端口: %d", http_port)
-	log.Infof("API端点:")
-	log.Infof("  GET /api/bn-latency - 查询币安延迟")
-	log.Infof("  GET /api/node-latency - 查询节点延迟")
-
-	err := http.ListenAndServe(serverAddr, nil)
-	if err != nil {
-		log.Errorf("HTTP服务器启动失败: %v", err)
-	}
-	log.Infof("HTTP服务器启动成功，监听端口: %d", http_port)
 }

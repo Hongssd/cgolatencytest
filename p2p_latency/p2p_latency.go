@@ -1,9 +1,9 @@
 package p2p_latency
 
 import (
-	"cgolatencytest/config"
 	"cgolatencytest/myutils"
 	"cgolatencytest/p2p_base"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -13,7 +13,11 @@ import (
 )
 
 type P2PLatencyNode struct {
-	Node      *p2p_base.P2PBaseNode
+	Node *p2p_base.P2PBaseNode
+
+	NodeCtx    context.Context
+	NodeCancel context.CancelFunc
+
 	BnLatency *BnLatencyResult
 
 	//目标节点平均网络延迟
@@ -23,27 +27,17 @@ type P2PLatencyNode struct {
 	NodeBnLatencyMap *myutils.MySyncMap[string, BnLatencyResult] // nodeName -> bnLatency
 }
 
-var thisP2PLatencyNode *P2PLatencyNode
-
-func GetP2PLatencyNode() *P2PLatencyNode {
-	return thisP2PLatencyNode
-}
-
-func init() {
+func NewP2PLatencyNode(nodeIP string, nodePort int, allNodeList []string) (*P2PLatencyNode, error) {
 	//初始化本节点，单例模式
-	myIP, err := getMyIP()
-	if err != nil {
-		log.Errorf("获取 IP 失败：%v\n", err)
-		return
-	}
+	myIP := nodeIP
 
 	//节点名及获取种子字符串
-	nodeName := getNodeName(myIP, 10000)
+	nodeName := getNodeName(myIP, nodePort)
 	//种子字符串默认为节点名
 	seedStr := nodeName
 
 	//获取其他所有节点
-	nodeNameList := config.GetConfigSlice("p2p_nodes")
+	nodeNameList := allNodeList
 
 	//注册其他所有节点
 	targetPeers := make(map[string]string)
@@ -52,28 +46,36 @@ func init() {
 		host, port, err := net.SplitHostPort(nodeName)
 		if err != nil {
 			log.Errorf("获取节点地址失败：%s - %v\n", nodeName, err)
-			continue
+			return nil, err
 		}
 
 		peerId, err := p2p_base.GetIDFromSeed(seed)
 		if err != nil {
 			log.Errorf("获取节点PeerId失败: %s - %v", seed, err)
-			continue
+			return nil, err
 		}
 
 		targetPeers[nodeName] = fmt.Sprintf("/ip4/%s/udp/%s/quic-v1/p2p/%s", host, port, peerId)
 	}
 
-	thisNode, err := p2p_base.NewP2PBaseNode(nodeName, 10000, seedStr, targetPeers)
+	thisNode, err := p2p_base.NewP2PBaseNode(nodeName, nodePort, seedStr, targetPeers)
 	if err != nil {
 		log.Errorf("创建p2p节点失败：%v\n", err)
-		return
+		return nil, err
 	}
-	thisP2PLatencyNode = newP2PLatencyNode(thisNode)
-
-	go func() {
+	thisP2PLatencyNode := &P2PLatencyNode{
+		Node:              thisNode,
+		BnLatency:         &BnLatencyResult{},
+		NodeAvgLatencyMap: myutils.GetPointer(myutils.NewMySyncMap[string, int64]()),
+		NodeBnLatencyMap:  myutils.GetPointer(myutils.NewMySyncMap[string, BnLatencyResult]()),
+	}
+	thisP2PLatencyNode.NodeCtx, thisP2PLatencyNode.NodeCancel = context.WithCancel(context.Background())
+	go func(ctx context.Context) {
 		//持续读取消息通道
 		for msg := range thisNode.MsgChan() {
+			if ctx.Err() != nil {
+				return
+			}
 			log.Infof("[%s]收到消息: %s, 消息延迟: %dus", thisNode.PeerName, msg.MsgData, (time.Now().UnixNano()-msg.TimestampNano)/1000)
 			//判断是否符合请求格式
 			inTimestamp := time.Now().UnixNano()
@@ -111,55 +113,57 @@ func init() {
 				log.Error(err)
 			}
 		}
-	}()
+	}(thisP2PLatencyNode.NodeCtx)
 
-	go func() {
+	go func(ctx context.Context) {
 		//每分钟广播一次延迟消息
 		for {
-			time.Sleep(time.Minute * 1)
-			err := thisP2PLatencyNode.broadcastAvgLatencyMsg()
-			if err != nil {
-				log.Error(err)
+			select {
+			case <-ctx.Done():
+				log.Infof("[%s]广播延迟消息协程退出", thisNode.PeerName)
+				return
+			case <-time.After(time.Minute * 1):
+				err := thisP2PLatencyNode.broadcastAvgLatencyMsg()
+				if err != nil {
+					log.Error(err)
+				}
 			}
 		}
-	}()
+	}(thisP2PLatencyNode.NodeCtx)
 
-	go func() {
+	go func(ctx context.Context) {
 		//每分钟计算一次币安延迟信息
 		for {
-			time.Sleep(time.Minute * 1)
-			err := thisP2PLatencyNode.refreshBnLatency()
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-			err = thisP2PLatencyNode.broadcastBnLatencyMsg()
-			if err != nil {
-				log.Error(err)
-				continue
+			select {
+			case <-ctx.Done():
+				log.Infof("[%s]币安延迟计算协程退出", thisNode.PeerName)
+				return
+			case <-time.After(time.Minute * 1):
+				err := thisP2PLatencyNode.refreshBnLatency()
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				err = thisP2PLatencyNode.broadcastBnLatencyMsg()
+				if err != nil {
+					log.Error(err)
+					continue
+				}
 			}
 		}
-	}()
+	}(thisP2PLatencyNode.NodeCtx)
 
 	//刷新一次币安延迟
-	thisP2PLatencyNode.refreshBnLatency()
+	go thisP2PLatencyNode.refreshBnLatency()
 
-}
-
-func newP2PLatencyNode(node *p2p_base.P2PBaseNode) *P2PLatencyNode {
-	return &P2PLatencyNode{
-		Node:              node,
-		BnLatency:         &BnLatencyResult{},
-		NodeAvgLatencyMap: myutils.GetPointer(myutils.NewMySyncMap[string, int64]()),
-		NodeBnLatencyMap:  myutils.GetPointer(myutils.NewMySyncMap[string, BnLatencyResult]()),
-	}
+	return thisP2PLatencyNode, nil
 }
 
 func getNodeName(ip string, port int) string {
 	return fmt.Sprintf("%s:%d", ip, port)
 }
 
-func getMyIP() (string, error) {
+func GetMyIP() (string, error) {
 	resp, err := http.Get("http://icanhazip.com")
 	if err != nil {
 		log.Errorf("获取 IP 失败：%v\n", err)
