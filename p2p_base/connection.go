@@ -1,10 +1,11 @@
 package p2p_base
 
 import (
-	"cgolatencytest/myutils"
 	"context"
 	"fmt"
 	"io"
+
+	"github.com/Hongssd/cgolatencytest/myutils"
 
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"

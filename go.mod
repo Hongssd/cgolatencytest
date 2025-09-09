@@ -1,4 +1,4 @@
-module cgolatencytest
+module github.com/Hongssd/cgolatencytest
 
 go 1.25
 

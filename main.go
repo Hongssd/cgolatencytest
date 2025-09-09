@@ -1,12 +1,13 @@
 package main
 
 import (
-	"cgolatencytest/config"
-	"cgolatencytest/mylog"
-	"cgolatencytest/p2p_latency"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/Hongssd/cgolatencytest/config"
+	"github.com/Hongssd/cgolatencytest/mylog"
+	"github.com/Hongssd/cgolatencytest/p2p_latency"
 )
 
 var log = mylog.Log

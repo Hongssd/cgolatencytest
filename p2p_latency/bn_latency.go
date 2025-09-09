@@ -1,8 +1,8 @@
 package p2p_latency
 
 import (
-	"cgolatencytest/http_client"
-	"cgolatencytest/mylog"
+	"github.com/Hongssd/cgolatencytest/http_client"
+	"github.com/Hongssd/cgolatencytest/mylog"
 
 	"sync"
 	"sync/atomic"

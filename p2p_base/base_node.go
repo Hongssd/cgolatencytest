@@ -1,13 +1,14 @@
 package p2p_base
 
 import (
-	"cgolatencytest/mylog"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/Hongssd/cgolatencytest/mylog"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/libp2p/go-libp2p"

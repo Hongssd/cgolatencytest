@@ -1,8 +1,6 @@
 package p2p_latency
 
 import (
-	"cgolatencytest/myutils"
-	"cgolatencytest/p2p_base"
 	"context"
 	"fmt"
 	"io"
@@ -10,6 +8,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Hongssd/cgolatencytest/myutils"
+	"github.com/Hongssd/cgolatencytest/p2p_base"
 )
 
 type P2PLatencyNode struct {
