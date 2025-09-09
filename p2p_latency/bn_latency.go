@@ -173,8 +173,10 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 		serverTimeDiff int64
 	}{
 		{"BN SPOT      WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms/ethusdt@depth@100ms/solusdt@depth@100ms", 0},
-		{"BN FUTURE    WS STREAM", "wss://fstream-mm.binance.com/stream?streams=btcusdt@depth@0ms/ethusdt@depth@0ms", 0},
-		{"BN DELIVERY  WS STREAM", "wss://dstream-mm.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
+		// {"BN FUTURE    WS STREAM", "wss://fstream-mm.binance.com/stream?streams=btcusdt@depth@0ms/ethusdt@depth@0ms", 0},
+		// {"BN DELIVERY  WS STREAM", "wss://dstream-mm.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
+		{"BN FUTURE    WS STREAM", "wss://fstream-mm.binance.com/stream", 0},
+		{"BN DELIVERY  WS STREAM", "wss://dstream-mm.binance.com/stream", 0},
 	}
 
 	for rci, rc := range wsrunCases {
