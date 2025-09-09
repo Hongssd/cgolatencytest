@@ -40,9 +40,9 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 		serverTimeUrl  string
 		serverTimeDiff int64
 	}{
-		{"BN SPOT      API", "https://api.binance.com/api/v3/ping", "https://api.binance.com/api/v3/time", 0},
-		{"BN FUTURE    API", "https://fapi.binance.com/fapi/v1/ping", "https://fapi.binance.com/fapi/v1/time", 0},
-		{"BN DELIVERY  API", "https://dapi.binance.com/dapi/v1/ping", "https://dapi.binance.com/dapi/v1/time", 0},
+		{"BN SPOT      API", "https://api4.binance.com/api/v3/ping", "https://api4.binance.com/api/v3/time", 0},
+		{"BN FUTURE    API", "https://fapi-mm.binance.com/fapi/v1/ping", "https://fapi-mm.binance.com/fapi/v1/time", 0},
+		{"BN DELIVERY  API", "https://dapi-mm.binance.com/dapi/v1/ping", "https://dapi-mm.binance.com/dapi/v1/time", 0},
 		{"BN PORTFOLIO API", "https://papi.binance.com/papi/v1/ping", "", 0},
 	}
 
@@ -173,8 +173,8 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 		serverTimeDiff int64
 	}{
 		{"BN SPOT      WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms/ethusdt@depth@100ms/solusdt@depth@100ms", 0},
-		{"BN FUTURE    WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms/ethusdt@depth@0ms", 0},
-		{"BN DELIVERY  WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
+		{"BN FUTURE    WS STREAM", "wss://fstream-mm.binance.com/stream?streams=btcusdt@depth@0ms/ethusdt@depth@0ms", 0},
+		{"BN DELIVERY  WS STREAM", "wss://dstream-mm.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
 	}
 
 	for rci, rc := range wsrunCases {
