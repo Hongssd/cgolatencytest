@@ -1,10 +1,11 @@
 package mylog
 
 import (
-	"cgolatencytest/config"
 	"path"
 	"runtime"
 	"strconv"
+
+	"github.com/Hongssd/cgolatencytest/config"
 
 	"github.com/sirupsen/logrus"
 )
