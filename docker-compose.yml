@@ -67,7 +67,7 @@ networks:
   lan:
     driver: ipvlan
     driver_opts:
-      parent: enX0
+      parent: ${NETWORD_CARD}
       ipvlan_mode: l2
     ipam:
       config:
