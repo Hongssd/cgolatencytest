@@ -69,7 +69,7 @@ check_docker_compose() {
 
 # 构建Docker镜像（多阶段构建）
 build_docker_image() {
-    local tag=${1:-cgolatencytest:latest}
+    local tag=${1:-dockerhub.tradingx.pro/tradingx/cgolatencytest:latest}
     local include_test=${2:-false}
     
     print_info "构建Docker镜像: $tag"
@@ -113,7 +113,7 @@ build_docker_image() {
 
 # 测试Docker镜像
 test_docker() {
-    local tag=${1:-cgolatencytest:latest}
+    local tag=${1:-dockerhub.tradingx.pro/tradingx/cgolatencytest:latest}
     
     print_info "测试Docker镜像: $tag"
     
@@ -238,7 +238,7 @@ clean() {
     
     # 清理Docker镜像
     if command -v docker &> /dev/null; then
-        docker rmi cgolatencytest:latest 2>/dev/null || true
+        docker rmi dockerhub.tradingx.pro/tradingx/cgolatencytest:latest 2>/dev/null || true
         print_info "Docker镜像已清理"
     fi
     
