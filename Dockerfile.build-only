@@ -37,7 +37,7 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/go"
 ENV GOCACHE="/go/cache"
 ENV CGO_ENABLED=1
-ENV GOPROXY=https://goproxy.cn,direct
+
 
 # 设置工作目录
 WORKDIR /workspace
