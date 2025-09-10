@@ -67,101 +67,46 @@ check_docker_compose() {
     exit 1
 }
 
-# 容器化构建Go应用
-build_go_container() {
-    local include_test=${1:-false}
-    local dockerfile="Dockerfile.build-only"
-    
-    if [ "$include_test" = "true" ]; then
-        dockerfile="Dockerfile.build"
-        print_info "使用容器构建Go应用（包含测试）..."
-    else
-        print_info "使用容器构建Go应用（只构建，不执行）..."
-    fi
-    
-    start_timer
-    
-    if [ ! -f "go.mod" ]; then
-        print_error "未找到go.mod文件"
-        exit 1
-    fi
-    
-    if [ ! -f "$dockerfile" ]; then
-        print_error "未找到$dockerfile文件"
-        exit 1
-    fi
-    
-    # 清理之前的构建结果
-    print_info "清理之前的构建结果..."
-    rm -f main
-    docker rmi cgolatencytest-builder:latest 2>/dev/null || true
-    
-    # 构建构建镜像
-    print_info "构建构建镜像..."
-    docker build -f $dockerfile -t cgolatencytest-builder:latest .
-    
-    if [ $? -ne 0 ]; then
-        print_error "构建镜像创建失败"
-        exit 1
-    fi
-    
-    # 从构建容器中复制二进制文件
-    print_info "从构建容器复制构建结果到宿主机..."
-    docker create --name temp-builder cgolatencytest-builder:latest
-    docker cp temp-builder:/output/main ./main
-    docker cp temp-builder:/output/config.yml ./config.yml 2>/dev/null || true
-    docker cp temp-builder:/output/config ./config 2>/dev/null || true
-    docker rm temp-builder
-    
-    # 检查二进制文件是否生成
-    if [ -f "main" ]; then
-        end_timer "容器化Go应用构建"
-        print_success "容器化Go应用构建成功！"
-        print_info "构建结果已复制到宿主机当前目录："
-        ls -lh main
-        print_info "二进制文件信息："
-        file main
-    else
-        print_error "容器化Go应用构建失败，未生成main文件"
-        exit 1
-    fi
-}
-
-# 容器化构建Docker镜像
-build_docker_container() {
+# 构建Docker镜像（多阶段构建）
+build_docker_image() {
     local tag=${1:-cgolatencytest:latest}
+    local include_test=${2:-false}
     
-    print_info "使用容器化方式构建Docker镜像: $tag"
-    
-    if [ ! -f "Dockerfile.build-only" ]; then
-        print_error "未找到Dockerfile.build-only文件"
-        exit 1
-    fi
+    print_info "构建Docker镜像: $tag"
     
     if [ ! -f "Dockerfile" ]; then
         print_error "未找到Dockerfile文件"
         exit 1
     fi
     
-    # 1. 先构建main二进制文件
-    print_info "步骤1: 构建main二进制文件..."
-    build_go_container false
+    if [ ! -f "go.mod" ]; then
+        print_error "未找到go.mod文件"
+        exit 1
+    fi
     
-    # 2. 使用Dockerfile构建最终运行镜像
-    print_info "步骤2: 构建最终运行镜像..."
-    docker build -f Dockerfile -t $tag .
+    start_timer
+    
+    # 清理之前的镜像
+    print_info "清理之前的镜像..."
+    docker rmi $tag 2>/dev/null || true
+    
+    # 构建镜像（多阶段构建）
+    print_info "开始多阶段构建..."
+    docker build -t $tag .
     
     if [ $? -eq 0 ]; then
         # 验证镜像是否成功创建
         if docker image inspect $tag &> /dev/null; then
-            print_success "容器化Docker镜像构建成功: $tag"
+            end_timer "Docker镜像构建"
+            print_success "Docker镜像构建成功: $tag"
+            print_info "镜像信息："
             docker images $tag
         else
-            print_error "容器化Docker镜像构建失败，镜像未创建"
+            print_error "Docker镜像构建失败，镜像未创建"
             exit 1
         fi
     else
-        print_error "容器化Docker镜像构建失败"
+        print_error "Docker镜像构建失败"
         exit 1
     fi
 }
@@ -199,9 +144,9 @@ docker_test() {
     # 检查Docker
     check_docker
     
-    # 使用容器化方式构建和测试
-    print_info "容器化构建和测试..."
-    build_docker_container
+    # 构建镜像
+    print_info "构建Docker镜像..."
+    build_docker_image
     
     # 测试镜像
     print_info "测试Docker镜像..."
@@ -269,10 +214,10 @@ run_all() {
     clean
     echo
     
-    # 2. 容器化构建和测试
-    print_info "步骤 2/3: 容器化构建和测试..."
+    # 2. 构建和测试
+    print_info "步骤 2/3: 构建和测试..."
     check_docker
-    build_docker_container
+    build_docker_image
     test_docker
     echo
     
@@ -294,7 +239,6 @@ clean() {
     # 清理Docker镜像
     if command -v docker &> /dev/null; then
         docker rmi cgolatencytest:latest 2>/dev/null || true
-        docker rmi cgolatencytest-builder:latest 2>/dev/null || true
         print_info "Docker镜像已清理"
     fi
     
@@ -306,12 +250,11 @@ show_help() {
     echo "容器化CGO项目构建脚本使用方法："
     echo ""
     echo "构建相关："
-    echo "  $0 build       # 容器化构建项目（只构建，不执行）"
-    echo "  $0 build-test  # 容器化构建项目（包含测试）"
+    echo "  $0 build       # 构建Docker镜像（多阶段构建）"
     echo "  $0 clean       # 清理构建产物"
     echo ""
     echo "Docker相关："
-    echo "  $0 docker      # 容器化构建Docker镜像"
+    echo "  $0 docker      # 构建Docker镜像"
     echo "  $0 docker-test # 一键Docker测试（构建+测试）"
     echo "  $0 docker-compose-start # Docker Compose启动"
     echo ""
@@ -332,17 +275,12 @@ main() {
     case ${1:-help} in
         "build")
             check_docker
-            build_go_container false
+            build_docker_image
             print_success "构建完成"
-            ;;
-        "build-test")
-            check_docker
-            build_go_container true
-            print_success "构建完成（包含测试）"
             ;;
         "docker")
             check_docker
-            build_docker_container
+            build_docker_image
             ;;
         "docker-test")
             docker_test
