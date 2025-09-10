@@ -1,10 +1,7 @@
 services:
   # HTTP延迟测试主服务
   http-latency-test-node1:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test1
     volumes: 
       - .:/app
@@ -18,10 +15,7 @@ services:
     cap_add:
       - NET_ADMIN
   http-latency-test-node2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test2
     volumes: 
       - .:/app
@@ -35,10 +29,7 @@ services:
     cap_add:
       - NET_ADMIN
   http-latency-test-node3:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test3
     volumes: 
       - .:/app
@@ -53,10 +44,7 @@ services:
       - NET_ADMIN
 
   http-latency-test-node4:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test4
     volumes: 
       - .:/app
@@ -71,10 +59,7 @@ services:
       - NET_ADMIN
 
   http-latency-test-node5:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
+    image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test5
     volumes: 
       - .:/app
