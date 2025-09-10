@@ -1,0 +1,8 @@
+
+http_port: 9999
+
+p2p_nodes:
+  - "127.0.0.1:10000"
+
+logLevel: Debug
+

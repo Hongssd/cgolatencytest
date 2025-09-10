@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 纯CGO项目构建脚本
+# 容器化CGO项目构建脚本
 set -e
 
 # 颜色定义
@@ -26,132 +26,6 @@ end_timer() {
     end_time=$(date +%s.%N)
     duration=$(echo "$end_time - $start_time" | bc -l)
     print_success "$operation_name 完成，耗时: ${duration}s"
-}
-
-
-
-# 检查库文件是否存在
-check_library() {
-    local lib_name=$1
-    local lib_file=$2
-    
-    if [ -f "$lib_file" ]; then
-        print_success "✓ $lib_name 已安装"
-        return 0
-    else
-        print_error "✗ $lib_name 未安装 (查找路径: $lib_file)"
-        return 1
-    fi
-}
-
-# 使用pkg-config检查库
-check_library_pkgconfig() {
-    local lib_name=$1
-    local pkg_name=$2
-    
-    if pkg-config --exists "$pkg_name" 2>/dev/null; then
-        print_success "✓ $lib_name 已安装 (pkg-config)"
-        return 0
-    else
-        return 1
-    fi
-}
-
-# 使用ldconfig检查库
-check_library_ldconfig() {
-    local lib_name=$1
-    local lib_pattern=$2
-    
-    if ldconfig -p 2>/dev/null | grep -q "$lib_pattern"; then
-        print_success "✓ $lib_name 已安装 (ldconfig)"
-        return 0
-    else
-        return 1
-    fi
-}
-
-# 检查依赖
-check_deps() {
-    print_info "检查依赖..."
-    local missing_deps=()
-    local missing_libs=()
-    
-    # 检查基本命令
-    for cmd in go gcc; do
-        if ! command -v $cmd &> /dev/null; then
-            missing_deps+=($cmd)
-        else
-            print_success "✓ $cmd 已安装"
-        fi
-    done
-    
-    # 检查库文件
-    print_info "检查开发库..."
-
-    sudo apt install -y libssl-dev libnghttp2-dev libpsl-dev libidn2-dev zlib1g-dev
-    
-    # 检查 libssl-dev (OpenSSL)
-    if ! check_library_pkgconfig "libssl-dev" "openssl" && \
-       ! check_library_ldconfig "libssl-dev" "libssl" && \
-       ! check_library "libssl-dev" "/usr/lib/x86_64-linux-gnu/libssl.so" && \
-       ! check_library "libssl-dev" "/usr/lib/libssl.so" && \
-       ! check_library "libssl-dev" "/usr/lib64/libssl.so"; then
-        missing_libs+=("libssl-dev")
-    fi
-    
-    # 检查 libnghttp2-dev
-    if ! check_library_pkgconfig "libnghttp2-dev" "libnghttp2" && \
-       ! check_library_ldconfig "libnghttp2-dev" "libnghttp2" && \
-       ! check_library "libnghttp2-dev" "/usr/lib/x86_64-linux-gnu/libnghttp2.so" && \
-       ! check_library "libnghttp2-dev" "/usr/lib/libnghttp2.so" && \
-       ! check_library "libnghttp2-dev" "/usr/lib64/libnghttp2.so"; then
-        missing_libs+=("libnghttp2-dev")
-    fi
-    
-    # 检查 libpsl-dev
-    if ! check_library_pkgconfig "libpsl-dev" "libpsl" && \
-       ! check_library_ldconfig "libpsl-dev" "libpsl" && \
-       ! check_library "libpsl-dev" "/usr/lib/x86_64-linux-gnu/libpsl.so" && \
-       ! check_library "libpsl-dev" "/usr/lib/libpsl.so" && \
-       ! check_library "libpsl-dev" "/usr/lib64/libpsl.so"; then
-        missing_libs+=("libpsl-dev")
-    fi
-    
-    # 检查 libidn2-dev
-    if ! check_library_pkgconfig "libidn2-dev" "libidn2" && \
-       ! check_library_ldconfig "libidn2-dev" "libidn2" && \
-       ! check_library "libidn2-dev" "/usr/lib/x86_64-linux-gnu/libidn2.so" && \
-       ! check_library "libidn2-dev" "/usr/lib/libidn2.so" && \
-       ! check_library "libidn2-dev" "/usr/lib64/libidn2.so"; then
-        missing_libs+=("libidn2-dev")
-    fi
-    
-    # 检查 zlib1g-dev
-    if ! check_library_pkgconfig "zlib1g-dev" "zlib" && \
-       ! check_library_ldconfig "zlib1g-dev" "libz" && \
-       ! check_library "zlib1g-dev" "/usr/lib/x86_64-linux-gnu/libz.so" && \
-       ! check_library "zlib1g-dev" "/usr/lib/libz.so" && \
-       ! check_library "zlib1g-dev" "/usr/lib64/libz.so"; then
-        missing_libs+=("zlib1g-dev")
-    fi
-    
-    # 如果有缺失的依赖，显示错误信息
-    if [ ${#missing_deps[@]} -gt 0 ]; then
-        print_error "缺少命令依赖: ${missing_deps[*]}"
-        print_info "请安装缺少的命令，例如: sudo apt install ${missing_deps[*]}"
-    fi
-    
-    if [ ${#missing_libs[@]} -gt 0 ]; then
-        print_error "缺少库依赖: ${missing_libs[*]}"
-        print_info "请安装缺少的库，例如: sudo apt install ${missing_libs[*]}"
-    fi
-    
-    # 如果有任何缺失的依赖，退出
-    if [ ${#missing_deps[@]} -gt 0 ] || [ ${#missing_libs[@]} -gt 0 ]; then
-        exit 1
-    fi
-    
-    print_success "所有依赖检查通过"
 }
 
 # 检查Docker
@@ -193,9 +67,18 @@ check_docker_compose() {
     exit 1
 }
 
-# 构建Go应用
-build_go() {
-    print_info "构建Go应用..."
+# 容器化构建Go应用
+build_go_container() {
+    local include_test=${1:-false}
+    local dockerfile="Dockerfile.build-only"
+    
+    if [ "$include_test" = "true" ]; then
+        dockerfile="Dockerfile.build"
+        print_info "使用容器构建Go应用（包含测试）..."
+    else
+        print_info "使用容器构建Go应用（只构建，不执行）..."
+    fi
+    
     start_timer
     
     if [ ! -f "go.mod" ]; then
@@ -203,69 +86,82 @@ build_go() {
         exit 1
     fi
     
-    # 启用CGO并构建到根目录
-    CGO_ENABLED=1 go build -o main .
+    if [ ! -f "$dockerfile" ]; then
+        print_error "未找到$dockerfile文件"
+        exit 1
+    fi
+    
+    # 清理之前的构建结果
+    print_info "清理之前的构建结果..."
+    rm -f main
+    docker rmi cgolatencytest-builder:latest 2>/dev/null || true
+    
+    # 构建构建镜像
+    print_info "构建构建镜像..."
+    docker build -f $dockerfile -t cgolatencytest-builder:latest .
+    
+    if [ $? -ne 0 ]; then
+        print_error "构建镜像创建失败"
+        exit 1
+    fi
+    
+    # 从构建容器中复制二进制文件
+    print_info "从构建容器复制构建结果到宿主机..."
+    docker create --name temp-builder cgolatencytest-builder:latest
+    docker cp temp-builder:/output/main ./main
+    docker cp temp-builder:/output/config.yml ./config.yml 2>/dev/null || true
+    docker cp temp-builder:/output/config ./config 2>/dev/null || true
+    docker rm temp-builder
     
     # 检查二进制文件是否生成
     if [ -f "main" ]; then
-        end_timer "Go应用构建"
-        print_success "Go应用构建成功，二进制文件: main"
+        end_timer "容器化Go应用构建"
+        print_success "容器化Go应用构建成功！"
+        print_info "构建结果已复制到宿主机当前目录："
         ls -lh main
+        print_info "二进制文件信息："
+        file main
     else
-        print_error "Go应用构建失败，未生成main文件"
+        print_error "容器化Go应用构建失败，未生成main文件"
         exit 1
     fi
 }
 
-# 运行测试
-run_tests() {
-    print_info "运行测试..."
-    
-    if [ ! -f "go.mod" ]; then
-        print_error "未找到go.mod文件"
-        exit 1
-    fi
-    
-    if CGO_ENABLED=1 go test -v ./...; then
-        print_success "测试通过"
-    else
-        print_error "测试失败"
-        exit 1
-    fi
-}
-
-# 构建Docker镜像
-build_docker() {
+# 容器化构建Docker镜像
+build_docker_container() {
     local tag=${1:-cgolatencytest:latest}
     
-    print_info "构建Docker镜像: $tag"
+    print_info "使用容器化方式构建Docker镜像: $tag"
+    
+    if [ ! -f "Dockerfile.build-only" ]; then
+        print_error "未找到Dockerfile.build-only文件"
+        exit 1
+    fi
     
     if [ ! -f "Dockerfile" ]; then
         print_error "未找到Dockerfile文件"
         exit 1
     fi
     
-    # 检查main二进制文件是否存在
-    if [ ! -f "main" ]; then
-        print_error "main二进制文件不存在，请先运行 ./build.sh build"
-        exit 1
-    fi
+    # 1. 先构建main二进制文件
+    print_info "步骤1: 构建main二进制文件..."
+    build_go_container false
     
-    print_info "使用本地构建的二进制文件..."
-    
-    docker build -t $tag .
+    # 2. 使用Dockerfile构建最终运行镜像
+    print_info "步骤2: 构建最终运行镜像..."
+    docker build -f Dockerfile -t $tag .
     
     if [ $? -eq 0 ]; then
         # 验证镜像是否成功创建
         if docker image inspect $tag &> /dev/null; then
-            print_success "Docker镜像构建成功: $tag"
+            print_success "容器化Docker镜像构建成功: $tag"
             docker images $tag
         else
-            print_error "Docker镜像构建失败，镜像未创建"
+            print_error "容器化Docker镜像构建失败，镜像未创建"
             exit 1
         fi
     else
-        print_error "Docker镜像构建失败"
+        print_error "容器化Docker镜像构建失败"
         exit 1
     fi
 }
@@ -276,7 +172,7 @@ test_docker() {
     
     print_info "测试Docker镜像: $tag"
     
-    # 检查镜像是否存在（更可靠的检查方法）
+    # 检查镜像是否存在
     if ! docker image inspect $tag &> /dev/null; then
         print_error "Docker镜像 $tag 不存在，请先构建"
         exit 1
@@ -303,14 +199,9 @@ docker_test() {
     # 检查Docker
     check_docker
     
-    # 先构建Go应用，确保有main二进制文件
-    print_info "构建Go应用..."
-    check_deps
-    build_go
-    
-    # 构建镜像
-    print_info "构建Docker镜像..."
-    build_docker
+    # 使用容器化方式构建和测试
+    print_info "容器化构建和测试..."
+    build_docker_container
     
     # 测试镜像
     print_info "测试Docker镜像..."
@@ -325,11 +216,6 @@ docker_compose_start() {
     
     # 检查Docker Compose
     check_docker_compose
-    
-    # 先构建Go应用，确保有main二进制文件
-    print_info "构建Go应用..."
-    check_deps
-    build_go
     
     # 构建Docker Compose服务
     print_info "构建Docker Compose服务..."
@@ -379,35 +265,24 @@ run_all() {
     echo
     
     # 1. 清理
-    print_info "步骤 1/5: 清理构建产物..."
+    print_info "步骤 1/3: 清理构建产物..."
     clean
     echo
     
-    # 2. 检查依赖
-    print_info "步骤 2/5: 检查依赖..."
-    check_deps
-    echo
-    
-    # 3. 运行测试
-    print_info "步骤 3/5: 运行Go测试..."
-    run_tests
-    echo
-    
-    # 4. 重新构建
-    print_info "步骤 4/5: 重新构建项目..."
-    build_go
-    echo
-    
-    # 5. Docker构建和测试
-    print_info "步骤 5/5: Docker构建和测试..."
+    # 2. 容器化构建和测试
+    print_info "步骤 2/3: 容器化构建和测试..."
     check_docker
-    build_docker
+    build_docker_container
     test_docker
+    echo
+    
+    # 3. Docker Compose启动
+    print_info "步骤 3/3: Docker Compose启动..."
     docker_compose_start
     echo
     
     print_success "完整流程执行完成！"
-    print_info "项目已成功构建、测试并打包到Docker镜像中"
+    print_info "项目已成功在容器中构建、测试并打包到Docker镜像中"
 }
 
 # 清理
@@ -415,11 +290,11 @@ clean() {
     print_info "清理构建产物..."
     
     rm -f main
-    go clean -cache -testcache 2>/dev/null || true
     
     # 清理Docker镜像
     if command -v docker &> /dev/null; then
         docker rmi cgolatencytest:latest 2>/dev/null || true
+        docker rmi cgolatencytest-builder:latest 2>/dev/null || true
         print_info "Docker镜像已清理"
     fi
     
@@ -428,42 +303,46 @@ clean() {
 
 # 显示帮助
 show_help() {
-    echo "CGO项目构建脚本使用方法："
-    echo "  $0 build       # 构建项目"
-    echo "  $0 test        # 运行测试"
-    echo "  $0 docker      # 构建Docker镜像"
-    echo "  $0 docker-test # 一键Docker测试（构建+测试）"
-    echo "  $0 docker-compose-start # 🚀 一键Docker Compose启动（构建+启动主服务）"
+    echo "容器化CGO项目构建脚本使用方法："
+    echo ""
+    echo "构建相关："
+    echo "  $0 build       # 容器化构建项目（只构建，不执行）"
+    echo "  $0 build-test  # 容器化构建项目（包含测试）"
     echo "  $0 clean       # 清理构建产物"
-    echo "  $0 rebuild     # 重新构建"
-    echo "  $0 all         # 🚀 执行完整流程（清理+测试+构建+Docker）"
+    echo ""
+    echo "Docker相关："
+    echo "  $0 docker      # 容器化构建Docker镜像"
+    echo "  $0 docker-test # 一键Docker测试（构建+测试）"
+    echo "  $0 docker-compose-start # Docker Compose启动"
+    echo ""
+    echo "完整流程："
+    echo "  $0 all         # 执行完整流程（清理+构建+测试+Docker）"
+    echo ""
+    echo "其他："
     echo "  $0 help        # 显示帮助"
     echo ""
     echo "推荐使用："
     echo "  $0 all         # 一键完成所有流程"
-    echo "  $0 docker-compose-start # 🚀 Docker Compose启动主服务"
-    echo "  $0 docker-test # 仅Docker测试"
+    echo "  $0 build       # 仅构建项目"
+    echo "  $0 docker-test # Docker测试"
 }
-
-
 
 # 主函数
 main() {
-
     case ${1:-help} in
         "build")
-            check_deps
-            build_go
+            check_docker
+            build_go_container false
             print_success "构建完成"
             ;;
-        "test")
-            run_tests
+        "build-test")
+            check_docker
+            build_go_container true
+            print_success "构建完成（包含测试）"
             ;;
         "docker")
-            check_deps
-            build_go
             check_docker
-            build_docker
+            build_docker_container
             ;;
         "docker-test")
             docker_test
@@ -474,12 +353,6 @@ main() {
         "clean")
             clean
             ;;
-        "rebuild")
-            clean
-            check_deps
-            build_go
-            print_success "重新构建完成"
-            ;;
         "all")
             run_all
             ;;
@@ -487,9 +360,6 @@ main() {
             show_help
             ;;
     esac
-
-
 }
 
 main "$@"
-
