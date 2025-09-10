@@ -3,11 +3,9 @@ services:
   http-latency-test-node1:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test1
-    volumes: 
-      - .:/app
+    volumes: []
     working_dir: /app
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
+    environment: []
     restart: unless-stopped
     networks:
       lan:
@@ -17,11 +15,9 @@ services:
   http-latency-test-node2:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test2
-    volumes: 
-      - .:/app
+    volumes: []
     working_dir: /app
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
+    environment: []
     restart: unless-stopped
     networks:
       lan:
@@ -31,11 +27,9 @@ services:
   http-latency-test-node3:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test3
-    volumes: 
-      - .:/app
+    volumes: []
     working_dir: /app
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
+    environment: []
     restart: unless-stopped
     networks:
       lan:
@@ -46,11 +40,9 @@ services:
   http-latency-test-node4:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test4
-    volumes: 
-      - .:/app
+    volumes: []
     working_dir: /app
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
+    environment: []
     restart: unless-stopped
     networks:
       lan:
@@ -61,11 +53,9 @@ services:
   http-latency-test-node5:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test5
-    volumes: 
-      - .:/app
+    volumes: []
     working_dir: /app
-    environment:
-      - LD_LIBRARY_PATH=/app/http_test
+    environment: []
     restart: unless-stopped
     networks:
       lan:
