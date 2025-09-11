@@ -89,6 +89,9 @@ COPY --from=builder /workspace/main /app/main
 COPY --from=builder /workspace/config.yml /app/config.yml
 COPY --from=builder /workspace/config/default.yml /app/default.yml
 
+# 创建logs目录
+RUN mkdir -p /app/logs
+
 # 设置文件权限
 RUN chmod +x /app/main \
     && chown -R appuser:root /app
@@ -100,5 +103,5 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ps aux | grep main || exit 1
 
-# 设置入口点
-ENTRYPOINT ["./main","-config","config.yml"]
+# 设置入口点，同时输出到控制台和日志文件
+ENTRYPOINT ["sh", "-c", "./main -config config.yml 2>&1 | tee logs/log"]

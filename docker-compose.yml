@@ -3,7 +3,8 @@ services:
   http-latency-test-node1:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test1
-    volumes: []
+    volumes:
+      - ./logs/node1:/app/logs
     working_dir: /app
     environment: []
     restart: unless-stopped
@@ -15,7 +16,8 @@ services:
   http-latency-test-node2:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test2
-    volumes: []
+    volumes:
+      - ./logs/node2:/app/logs
     working_dir: /app
     environment: []
     restart: unless-stopped
@@ -27,7 +29,8 @@ services:
   http-latency-test-node3:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test3
-    volumes: []
+    volumes:
+      - ./logs/node3:/app/logs
     working_dir: /app
     environment: []
     restart: unless-stopped
@@ -40,7 +43,8 @@ services:
   http-latency-test-node4:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test4
-    volumes: []
+    volumes:
+      - ./logs/node4:/app/logs
     working_dir: /app
     environment: []
     restart: unless-stopped
@@ -53,7 +57,8 @@ services:
   http-latency-test-node5:
     image: dockerhub.tradingx.pro/tradingx/cgolatencytest:latest
     container_name: gocpptest-http-latency-test5
-    volumes: []
+    volumes:
+      - ./logs/node5:/app/logs
     working_dir: /app
     environment: []
     restart: unless-stopped
