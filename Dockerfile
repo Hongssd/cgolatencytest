@@ -78,6 +78,8 @@ RUN apt-get update && apt-get install -y \
     libpsl5 \
     zlib1g \
     ca-certificates \
+    # 时区数据
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # 创建非 root 用户
