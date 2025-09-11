@@ -38,7 +38,6 @@ ENV GOPATH="/go"
 ENV GOCACHE="/go/cache"
 ENV CGO_ENABLED=1
 ENV GOPROXY=https://goproxy.cn,direct
-ENV GO_PROXY=https://goproxy.cn,direct
 
 # 设置工作目录
 WORKDIR /workspace
@@ -69,6 +68,7 @@ FROM ubuntu:24.04 AS runtime
 ENV TZ=Asia/Shanghai
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CURL_VERSION=8.11.0
+
 
 # 安装运行时依赖
 RUN apt-get update && apt-get install -y \

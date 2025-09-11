@@ -6,7 +6,9 @@ services:
     volumes:
       - ./logs/node1:/app/logs
     working_dir: /app
-    environment: []
+    environment:
+      # 指定时区到上海
+      - TZ=Asia/Shanghai
     restart: unless-stopped
     networks:
       lan:
@@ -19,7 +21,9 @@ services:
     volumes:
       - ./logs/node2:/app/logs
     working_dir: /app
-    environment: []
+    environment:
+      # 指定时区到上海
+      - TZ=Asia/Shanghai
     restart: unless-stopped
     networks:
       lan:
@@ -32,7 +36,9 @@ services:
     volumes:
       - ./logs/node3:/app/logs
     working_dir: /app
-    environment: []
+    environment:
+      # 指定时区到上海
+      - TZ=Asia/Shanghai
     restart: unless-stopped
     networks:
       lan:
@@ -46,7 +52,9 @@ services:
     volumes:
       - ./logs/node4:/app/logs
     working_dir: /app
-    environment: []
+    environment:
+      # 指定时区到上海
+      - TZ=Asia/Shanghai
     restart: unless-stopped
     networks:
       lan:
@@ -60,7 +68,9 @@ services:
     volumes:
       - ./logs/node5:/app/logs
     working_dir: /app
-    environment: []
+    environment:
+      # 指定时区到上海
+      - TZ=Asia/Shanghai
     restart: unless-stopped
     networks:
       lan:
