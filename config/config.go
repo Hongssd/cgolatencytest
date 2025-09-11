@@ -17,7 +17,7 @@ var arbitrage string
 
 var p2pNodeName string
 
-func init() {
+func InitConfig() {
 	flag.StringVar(&configFile, "config", "", "configFile")
 	flag.StringVar(&network, "network", "", "network")
 	flag.StringVar(&version, "version", "", "version")

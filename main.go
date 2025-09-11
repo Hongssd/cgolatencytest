@@ -14,7 +14,7 @@ var log = mylog.Log
 
 func main() {
 	// 启动HTTP服务器
-
+	config.InitConfig()
 	myIP, err := p2p_latency.GetMyIP()
 	if err != nil {
 		log.Errorf("获取本机IP失败: %v", err)
