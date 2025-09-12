@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Hongssd/cgolatencytest/mylog"
+	"github.com/sirupsen/logrus"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/libp2p/go-libp2p"
@@ -20,6 +21,10 @@ import (
 
 var log = mylog.Log
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+func SetLogger(outerLog *logrus.Logger) {
+	log = outerLog
+}
 
 const (
 	ProtocolID = "/latency-p2p/1.0.0"

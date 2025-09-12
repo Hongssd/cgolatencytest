@@ -3,6 +3,7 @@ package p2p_latency
 import (
 	"github.com/Hongssd/cgolatencytest/http_client"
 	"github.com/Hongssd/cgolatencytest/mylog"
+	"github.com/sirupsen/logrus"
 
 	"sync"
 	"sync/atomic"
@@ -14,6 +15,10 @@ import (
 // 进度指示器字符
 var log = mylog.Log
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+func SetLogger(outerLog *logrus.Logger) {
+	log = outerLog
+}
 
 type BnLatencyResult struct {
 	HttpBinanceSpotLatencyNs      int64 //BN SPOT HTTP 纳秒延迟
