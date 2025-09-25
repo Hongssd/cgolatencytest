@@ -47,7 +47,7 @@ func main() {
 
 	go p2pNode.StartHTTPServer(http_port)
 
-	log.Info("开始监控币安延迟信息...")
+	log.Info("开始监控币安/OKX延迟信息...")
 	// 原有的延迟监控逻辑
 	for {
 		time.Sleep(time.Second * 30)
@@ -56,6 +56,11 @@ func main() {
 
 		for k, v := range bnLatencyAll {
 			log.Infof("节点[%s]币安延迟信息: %+v", k, v)
+		}
+
+		okxLatencyAll := p2pNode.GetOkxLatencyAll()
+		for k, v := range okxLatencyAll {
+			log.Infof("节点[%s]OKX延迟信息: %+v", k, v)
 		}
 
 		nodeLatencyAll := p2pNode.GetAllAvgLatency()

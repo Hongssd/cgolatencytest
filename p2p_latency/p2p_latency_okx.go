@@ -6,23 +6,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// 刷新币安延迟信息
-func (n *P2PLatencyNode) refreshBnLatency() error {
-	result, err := TestBinanceHttpAndWsLatency()
+// 刷新OKX延迟信息
+func (n *P2PLatencyNode) refreshOkxLatency() error {
+	result, err := TestOkxHttpAndWsLatency()
 	if err != nil {
 		return err
 	}
-
-	n.BnLatency = result
-
+	n.OkxLatency = result
 	return nil
 }
 
-
-// 广播币安延迟消息给所有远程P2P节点
-func (n *P2PLatencyNode) broadcastBnLatencyMsg() error {
+// 广播OKX延迟消息给所有远程P2P节点
+func (n *P2PLatencyNode) broadcastOkxLatencyMsg() error {
 	//广播延迟信息
-	bnLatencyData, err := json.Marshal(n.BnLatency)
+	okxLatencyData, err := json.Marshal(n.OkxLatency)
 	if err != nil {
 		return err
 	}
@@ -32,8 +29,8 @@ func (n *P2PLatencyNode) broadcastBnLatencyMsg() error {
 		IsReq: false,
 		Res: P2PRes{
 			ReqId:        uuid.New().String(),
-			ReqType:      P2PReqTypeBnLatency,
-			ResData:      string(bnLatencyData),
+			ReqType:      P2PReqTypeOkxLatency,
+			ResData:      string(okxLatencyData),
 			ErrCode:      0,
 			ErrMsg:       "",
 			InTimestamp:  time.Now().UnixNano(),
@@ -47,7 +44,7 @@ func (n *P2PLatencyNode) broadcastBnLatencyMsg() error {
 		log.Errorf("Marshal error: %v", err)
 		return err
 	}
-	//广播币安延迟消息给所有远程P2P节点
+	//广播OKX延迟消息给所有远程P2P节点
 	err = n.Node.BroadcastMsg(string(p2pMsgResBytes), true)
 	if err != nil {
 		log.Errorf("SendResMsg error: %v", err)
@@ -56,10 +53,10 @@ func (n *P2PLatencyNode) broadcastBnLatencyMsg() error {
 	return nil
 }
 
-//处理币安延迟请求
-func (n *P2PLatencyNode) handleBnLatencyMsgReq(p2pMsg P2PMessage, fromPeerName string, inTimestamp int64) error {
+// 处理OKX延迟请求
+func (n *P2PLatencyNode) handleOkxLatencyMsgReq(p2pMsg P2PMessage, fromPeerName string, inTimestamp int64) error {
 
-	bnLatencyData, err := json.Marshal(n.BnLatency)
+	okxLatencyData, err := json.Marshal(n.OkxLatency)
 	if err != nil {
 		return err
 	}
@@ -71,7 +68,7 @@ func (n *P2PLatencyNode) handleBnLatencyMsgReq(p2pMsg P2PMessage, fromPeerName s
 		Res: P2PRes{
 			ReqId:        p2pMsg.Req.ReqId,
 			ReqType:      p2pMsg.Req.ReqType,
-			ResData:      string(bnLatencyData),
+			ResData:      string(okxLatencyData),
 			ErrCode:      0,
 			ErrMsg:       "",
 			InTimestamp:  inTimestamp,
@@ -95,36 +92,39 @@ func (n *P2PLatencyNode) handleBnLatencyMsgReq(p2pMsg P2PMessage, fromPeerName s
 	return nil
 }
 
-func (n *P2PLatencyNode) handleBnLatencyMsgRes(p2pMsg P2PMessage, fromPeerName string) error {
-	targetBnLatency := BnLatencyResult{}
-	err := json.Unmarshal([]byte(p2pMsg.Res.ResData), &targetBnLatency)
+func (n *P2PLatencyNode) handleOkxLatencyMsgRes(p2pMsg P2PMessage, fromPeerName string) error {
+	targetOkxLatency := OkxLatencyResult{}
+	err := json.Unmarshal([]byte(p2pMsg.Res.ResData), &targetOkxLatency)
 	if err != nil {
 		return err
 	}
-	n.NodeBnLatencyMap.Store(fromPeerName, targetBnLatency)
+	n.NodeOkxLatencyMap.Store(fromPeerName, targetOkxLatency)
 	return nil
 }
 
-// 通过节点名获取币安延迟信息
-func (n *P2PLatencyNode) GetBnLatencyFromNodeName(nodeName string) BnLatencyResult {
+// 通过节点名获取OKX延迟信息
+func (n *P2PLatencyNode) GetOkxLatencyFromNodeName(nodeName string) OkxLatencyResult {
 	if nodeName == n.Node.PeerName {
-		return *n.BnLatency
+		return *n.OkxLatency
 	}
-	bnLatency, ok := n.NodeBnLatencyMap.Load(nodeName)
+	okxLatency, ok := n.NodeOkxLatencyMap.Load(nodeName)
 	if !ok {
-		return BnLatencyResult{}
+		return OkxLatencyResult{}
 	}
-	return bnLatency
+	return okxLatency
 }
 
-// 获取所有币安延迟信息
-func (n *P2PLatencyNode) GetBnLatencyAll() map[string]BnLatencyResult {
-	bnLatencyMap := make(map[string]BnLatencyResult)
-	n.NodeBnLatencyMap.Range(func(key string, value BnLatencyResult) bool {
-		bnLatencyMap[key] = value
+// 获取所有OKX延迟信息
+func (n *P2PLatencyNode) GetOkxLatencyAll() map[string]OkxLatencyResult {
+	okxLatencyMap := make(map[string]OkxLatencyResult)
+	n.NodeOkxLatencyMap.Range(func(key string, value OkxLatencyResult) bool {
+		okxLatencyMap[key] = value
 		return true
 	})
 
-	bnLatencyMap[n.Node.PeerName] = *n.BnLatency
-	return bnLatencyMap
+	if n.OkxLatency != nil {
+		okxLatencyMap[n.Node.PeerName] = *n.OkxLatency
+	}
+
+	return okxLatencyMap
 }

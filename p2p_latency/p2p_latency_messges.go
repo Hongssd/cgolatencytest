@@ -3,8 +3,9 @@ package p2p_latency
 type P2PReqType string
 
 const (
-	P2PReqTypeLatency   P2PReqType = "latency"    //网络延迟消息
-	P2PReqTypeBnLatency P2PReqType = "bn_latency" //币安延迟消息
+	P2PReqTypeLatency    P2PReqType = "latency"     //网络延迟消息
+	P2PReqTypeBnLatency  P2PReqType = "bn_latency"  //币安延迟消息
+	P2PReqTypeOkxLatency P2PReqType = "okx_latency" //OKX延迟消息
 )
 
 type P2PMessage struct {
@@ -30,4 +31,3 @@ type P2PRes struct {
 	InTimestamp  int64
 	OutTimestamp int64
 }
-

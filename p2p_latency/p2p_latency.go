@@ -19,13 +19,17 @@ type P2PLatencyNode struct {
 	NodeCtx    context.Context
 	NodeCancel context.CancelFunc
 
-	BnLatency *BnLatencyResult
+	BnLatency  *BnLatencyResult
+	OkxLatency *OkxLatencyResult
 
 	//目标节点平均网络延迟
 	NodeAvgLatencyMap *myutils.MySyncMap[string, int64] // nodeName -> avgLatency
 
 	//目标节点币安延迟信息
 	NodeBnLatencyMap *myutils.MySyncMap[string, BnLatencyResult] // nodeName -> bnLatency
+
+	//目标节点OKX延迟信息
+	NodeOkxLatencyMap *myutils.MySyncMap[string, OkxLatencyResult] // nodeName -> okxLatency
 }
 
 func NewP2PLatencyNode(nodeIP string, nodePort int, allNodeList []string) (*P2PLatencyNode, error) {
@@ -69,6 +73,7 @@ func NewP2PLatencyNode(nodeIP string, nodePort int, allNodeList []string) (*P2PL
 		BnLatency:         &BnLatencyResult{},
 		NodeAvgLatencyMap: myutils.GetPointer(myutils.NewMySyncMap[string, int64]()),
 		NodeBnLatencyMap:  myutils.GetPointer(myutils.NewMySyncMap[string, BnLatencyResult]()),
+		NodeOkxLatencyMap: myutils.GetPointer(myutils.NewMySyncMap[string, OkxLatencyResult]()),
 	}
 	thisP2PLatencyNode.NodeCtx, thisP2PLatencyNode.NodeCancel = context.WithCancel(context.Background())
 	go func(ctx context.Context) {
@@ -97,6 +102,9 @@ func NewP2PLatencyNode(nodeIP string, nodePort int, allNodeList []string) (*P2PL
 				case P2PReqTypeBnLatency:
 					//远程节点发起币安延迟请求直接返回币安延迟信息
 					err = thisP2PLatencyNode.handleBnLatencyMsgReq(p2pMsg, msg.FromPeerName, inTimestamp)
+				case P2PReqTypeOkxLatency:
+					//远程节点发起OKX延迟请求直接返回OKX延迟信息
+					err = thisP2PLatencyNode.handleOkxLatencyMsgReq(p2pMsg, msg.FromPeerName, inTimestamp)
 				default:
 					log.Errorf("P2P节点[%s]不支持的请求类型: %s", msg.FromPeerName, p2pMsg.Req.ReqType)
 				}
@@ -106,6 +114,9 @@ func NewP2PLatencyNode(nodeIP string, nodePort int, allNodeList []string) (*P2PL
 				case P2PReqTypeBnLatency:
 					//远程节点响应返回币安延迟信息，存入缓存
 					err = thisP2PLatencyNode.handleBnLatencyMsgRes(p2pMsg, msg.FromPeerName)
+				case P2PReqTypeOkxLatency:
+					//远程节点响应返回OKX延迟信息，存入缓存
+					err = thisP2PLatencyNode.handleOkxLatencyMsgRes(p2pMsg, msg.FromPeerName)
 				default:
 					log.Errorf("P2P节点[%s]不支持的应答类型: %s", msg.FromPeerName, p2pMsg.Res.ReqType)
 				}
@@ -154,8 +165,33 @@ func NewP2PLatencyNode(nodeIP string, nodePort int, allNodeList []string) (*P2PL
 		}
 	}(thisP2PLatencyNode.NodeCtx)
 
-	//刷新一次币安延迟
-	go thisP2PLatencyNode.refreshBnLatency()
+	//每分钟刷新一次OKX延迟信息
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Infof("[%s]OKX延迟计算协程退出", thisNode.PeerName)
+				return
+			case <-time.After(time.Minute * 1):
+				err := thisP2PLatencyNode.refreshOkxLatency()
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				err = thisP2PLatencyNode.broadcastOkxLatencyMsg()
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+			}
+		}
+	}(thisP2PLatencyNode.NodeCtx)
+
+	//刷新一次币安延迟 OKX延迟
+	go func() {
+		thisP2PLatencyNode.refreshBnLatency()
+		thisP2PLatencyNode.refreshOkxLatency()
+	}()
 
 	return thisP2PLatencyNode, nil
 }

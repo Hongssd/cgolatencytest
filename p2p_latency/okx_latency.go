@@ -1,37 +1,21 @@
 package p2p_latency
 
 import (
-	"github.com/Hongssd/cgolatencytest/http_client"
-	"github.com/Hongssd/cgolatencytest/mylog"
-	"github.com/sirupsen/logrus"
-
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/Hongssd/cgolatencytest/http_client"
 )
 
-// 进度指示器字符
-var log = mylog.Log
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
-func SetLogger(outerLog *logrus.Logger) {
-	log = outerLog
+type OkxLatencyResult struct {
+	HttpOkxLatencyNs int64 //OKX HTTP 纳秒延迟
+	WsOkxLatencyNs   int64 //OKX WS 纳秒延迟
 }
 
-type BnLatencyResult struct {
-	HttpBinanceSpotLatencyNs      int64 //BN SPOT HTTP 纳秒延迟
-	HttpBinanceFutureLatencyNs    int64 //BN FUTURE HTTP 纳秒延迟
-	HttpBinanceDeliveryLatencyNs  int64 //BN DELIVERY HTTP 纳秒延迟
-	HttpBinancePortfolioLatencyNs int64 //BN PORTFOLIO HTTP 纳秒延迟
-	WsBinanceSpotLatencyNs        int64 //BN SPOT WS 纳秒延迟
-	WsBinanceFutureLatencyNs      int64 //BN FUTURE WS 纳秒延迟
-	WsBinanceDeliveryLatencyNs    int64 //BN DELIVERY WS 纳秒延迟
-}
-
-func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
-	log.Debug("开始测试Binance HTTP和WebSocket延迟...")
+func TestOkxHttpAndWsLatency() (*OkxLatencyResult, error) {
+	log.Debug("开始测试Okx HTTP和WebSocket延迟...")
 
 	err := http_client.InitLibcurl()
 	if err != nil {
@@ -45,10 +29,7 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 		serverTimeUrl  string
 		serverTimeDiff int64
 	}{
-		{"BN SPOT      API", "https://api4.binance.com/api/v3/ping", "https://api4.binance.com/api/v3/time", 0},
-		{"BN FUTURE    API", "https://fapi.binance.com/fapi/v1/ping", "https://fapi.binance.com/fapi/v1/time", 0},
-		{"BN DELIVERY  API", "https://dapi.binance.com/dapi/v1/ping", "https://dapi.binance.com/dapi/v1/time", 0},
-		{"BN PORTFOLIO API", "https://papi.binance.com/papi/v1/ping", "", 0},
+		{"OKX API", "https://www.okx.com/api/v5/public/time", "https://www.okx.com/api/v5/public/time", 0},
 	}
 
 	type TestResult struct {
@@ -91,18 +72,40 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 
 					if serverTimeRes.StatusCode == 200 {
 						serverTimeBodyMap := map[string]interface{}{}
+						// log.Info("serverTimeRes.ResponseBody: ", serverTimeRes.ResponseBody)
 						err := json.Unmarshal([]byte(serverTimeRes.ResponseBody), &serverTimeBodyMap)
 						if err != nil {
 							log.Errorf("[%s] 解析服务器时间差失败: [res:%s]%v", rc.name, serverTimeRes.ResponseBody, serverTimeRes.ResponseBody)
 							continue
 						}
-						serverTimeTimestampInterface, ok := serverTimeBodyMap["serverTime"]
+
+						// log.Info("serverTimeBodyMap: ", serverTimeBodyMap)
+						dataInterface, ok := serverTimeBodyMap["data"]
 						if !ok {
 							continue
 						}
-						//获取服务器毫秒时间戳
-						serverTimeTimestamp := int64(serverTimeTimestampInterface.(float64))
+						// log.Info("dataInterface: ", dataInterface)
+						dataInterfaceList, ok := dataInterface.([]interface{})
+						if !ok {
+							continue
+						}
+						// log.Info("dataInterfaceList: ", dataInterfaceList)
+						dataInterfaceMap, ok := dataInterfaceList[0].(map[string]interface{})
+						if !ok {
+							continue
+						}
 
+						// log.Info("dataInterfaceMap: ", dataInterfaceMap)
+						serverTimeTimestampInterface, ok := dataInterfaceMap["ts"]
+						if !ok {
+							continue
+						}
+						// log.Info("serverTimeTimestampInterface: ", serverTimeTimestampInterface)
+						//获取服务器毫秒时间戳
+						serverTimeTimestamp, err := strconv.ParseInt(serverTimeTimestampInterface.(string), 10, 64)
+						if err != nil {
+							continue
+						}
 						//转为纳秒时间戳
 						serverTimeTimestampNs := serverTimeTimestamp * 1000000
 
@@ -172,28 +175,44 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 	wg.Wait()
 
 	log.Infof("HTTP测试完成，耗时:%v", time.Since(start))
+
 	// ============================
 	// WebSocket 延迟测试部分
 	// ============================
 	wsrunCases := []struct {
 		name           string
 		url            string
+		subscribeMsg   string
 		serverTimeDiff int64
 	}{
-		{"BN SPOT      WS STREAM", "wss://stream.binance.com:9443/stream?streams=btcusdt@depth@100ms/ethusdt@depth@100ms/solusdt@depth@100ms/xrpusdt@depth@100ms/dogeusdt@depth@100ms", 0},
-		{"BN FUTURE    WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms/ethusdt@depth@0ms", 0},
-		{"BN DELIVERY  WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
-		// {"BN FUTURE    WS STREAM", "wss://fstream-mm.binance.com/stream", 0},
+		{"OKX WS STREAM", "wss://ws.okx.com/ws/v5/public",
+			`
+		{
+			"id": "1512",
+			"op": "subscribe",
+			"args": [{
+				"channel": "bbo-tbt",
+				"instId": "BTC-USDT-SWAP"
+			},{
+				"channel": "bbo-tbt",
+				"instId": "ETH-USDT-SWAP"
+			},{
+				"channel": "bbo-tbt",
+				"instId": "BTC-USDT"
+			},{
+				"channel": "bbo-tbt",
+				"instId": "ETH-USDT"
+			}]
+		} `,
+			0},
+		// {"BN FUTURE    WS STREAM", "wss://fstream.binance.com/stream?streams=btcusdt@depth@0ms/ethusdt@depth@0ms", 0},
+		// {"BN DELIVERY  WS STREAM", "wss://dstream.binance.com/stream?streams=btcusd_perp@depth@0ms", 0},
+		// // {"BN FUTURE    WS STREAM", "wss://fstream-mm.binance.com/stream", 0},
 		// {"BN DELIVERY  WS STREAM", "wss://dstream-mm.binance.com/stream", 0},
 	}
 
-	for rci, rc := range wsrunCases {
-		for _, rc2 := range runCases {
-			if rc.name[:4] == rc2.name[:4] {
-				wsrunCases[rci].serverTimeDiff = rc2.serverTimeDiff
-			}
-		}
-	}
+	wsrunCases[0].serverTimeDiff = runCases[0].serverTimeDiff
+
 	time.Sleep(2 * time.Second)
 
 	// 初始化WebSocket libcurl
@@ -229,6 +248,14 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 			}
 			// 连接成功后不再单独打印，由状态显示器统一显示
 
+			//链接成功后发送一条订阅消息
+			code, err := client.Send(rc.subscribeMsg, true)
+			if err != nil {
+				log.Errorf("[%s] 发送订阅消息失败: %v", rc.name, err)
+				return
+			}
+			log.Infof("[%s] 发送订阅消息成功: %d", rc.name, code)
+
 			avgLatency := int64(0)
 			//接收1000次消息
 			for {
@@ -247,31 +274,36 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 					// 暂时无消息，继续等待
 					continue
 				}
-
-				// log.Info("recv : ", recv)
+				// log.Info("ws recv: ", recv)
 				now := time.Now().UnixNano()
-				unmarshalMap := map[string]interface{}{}
-				err = json.Unmarshal([]byte(recv), &unmarshalMap)
+
+				type WsRecv struct {
+					Arg struct {
+						Channel string `json:"channel"`
+						InstId  string `json:"instId"`
+					} `json:"arg"`
+					Data []struct {
+						Asks  [][]string `json:"asks"`
+						Bids  [][]string `json:"bids"`
+						Ts    string     `json:"ts"`
+						SeqId int64      `json:"seqId"`
+					} `json:"data"`
+				}
+
+				wsRecv := WsRecv{}
+				err = json.Unmarshal([]byte(recv), &wsRecv)
 				if err != nil {
 					continue // 跳过无效消息
 				}
-
-				// 解析消息时间戳
-				dataMapInterface, ok := unmarshalMap["data"]
-				if !ok {
+				if len(wsRecv.Data) == 0 {
 					continue
 				}
 
-				dataMap, ok := dataMapInterface.(map[string]interface{})
-				if !ok {
+				msgTimestamp, err := strconv.ParseInt(wsRecv.Data[0].Ts, 10, 64)
+				if err != nil {
 					continue
 				}
-
-				msgTimestampInterface, ok := dataMap["E"]
-				if !ok {
-					continue
-				}
-				msgTimestamp := int64(msgTimestampInterface.(float64))
+				// log.Info("msgTimestamp: ", msgTimestamp)
 				//毫秒转纳秒
 				msgTimestampNano := msgTimestamp * 1000000
 
@@ -298,28 +330,18 @@ func TestBinanceHttpAndWsLatency() (*BnLatencyResult, error) {
 
 	log.Infof("WS测试完成，耗时:%v", time.Since(start))
 
-	log.Debug("Binance HTTP和WebSocket延迟测试完成...")
+	log.Debug("OKX HTTP和WebSocket延迟测试完成...")
 	log.Debug(resultMap)
 	log.Debug(wsResultMap)
 
-	result := &BnLatencyResult{
-		HttpBinanceSpotLatencyNs:      resultMap[runCases[0].name].avgLatency,
-		HttpBinanceFutureLatencyNs:    resultMap[runCases[1].name].avgLatency,
-		HttpBinanceDeliveryLatencyNs:  resultMap[runCases[2].name].avgLatency,
-		HttpBinancePortfolioLatencyNs: resultMap[runCases[3].name].avgLatency,
-		WsBinanceSpotLatencyNs:        wsResultMap[wsrunCases[0].name].avgLatency,
-		WsBinanceFutureLatencyNs:      wsResultMap[wsrunCases[1].name].avgLatency,
-		WsBinanceDeliveryLatencyNs:    wsResultMap[wsrunCases[2].name].avgLatency,
+	result := &OkxLatencyResult{
+		HttpOkxLatencyNs: resultMap[runCases[0].name].avgLatency,
+		WsOkxLatencyNs:   wsResultMap[wsrunCases[0].name].avgLatency,
 	}
 
 	log.Debug("==========测试结果========")
-	log.Debugf("HTTP      Binance SPOT:      %.6f ms", float64(result.HttpBinanceSpotLatencyNs)/1000000)
-	log.Debugf("HTTP      Binance FUTURE:    %.6f ms", float64(result.HttpBinanceFutureLatencyNs)/1000000)
-	log.Debugf("HTTP      Binance DELIVERY:  %.6f ms", float64(result.HttpBinanceDeliveryLatencyNs)/1000000)
-	log.Debugf("HTTP      Binance PORTFOLIO: %.6f ms", float64(result.HttpBinancePortfolioLatencyNs)/1000000)
-	log.Debugf("WebSocket Binance SPOT:      %.6f ms", float64(result.WsBinanceSpotLatencyNs)/1000000)
-	log.Debugf("WebSocket Binance FUTURE:    %.6f ms", float64(result.WsBinanceFutureLatencyNs)/1000000)
-	log.Debugf("WebSocket Binance DELIVERY:  %.6f ms", float64(result.WsBinanceDeliveryLatencyNs)/1000000)
+	log.Debugf("HTTP      OKX:      %.6f ms", float64(result.HttpOkxLatencyNs)/1000000)
+	log.Debugf("WebSocket OKX:      %.6f ms", float64(result.WsOkxLatencyNs)/1000000)
 	log.Debug("=========================")
 
 	return result, nil
